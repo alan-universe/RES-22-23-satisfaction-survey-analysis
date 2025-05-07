@@ -1,0 +1,2146 @@
+---
+title: "22-23 RES Satisfaction Survey Response Analysis and Categorization"
+author: "Alan Calvillo"
+date: "2024-03-28"
+output: html_document
+---
+
+```{css, echo=FALSE}
+.dataTables_wrapper {
+  border: 1.5px solid black !important;
+  overflow-x: auto !important; /* Enable horizontal scrolling */
+  width: 100% !important; /* Ensure the wrapper takes full width */
+}
+
+/* Increase padding and font size for the table caption */
+.dataTables_wrapper caption {
+  padding: 10px !important;
+  font-size: 130% !important;
+}
+
+/* Keep the original cell padding and font size without text wrapping */
+.dataTables_wrapper .table td {
+  padding: 10px !important;
+  font-size: 110% !important;
+}
+
+/* Adjust padding for the DataTable header (entries info and search box) */
+.dataTables_wrapper .dataTables_length, 
+.dataTables_wrapper .dataTables_filter {
+  padding: 10px !important;
+}
+
+/* Adjust padding for the DataTable footer (pagination info) */
+.dataTables_wrapper .dataTables_info, 
+.dataTables_wrapper .dataTables_paginate {
+  padding: 10px !important;
+}
+
+.wordcloud-image {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+```
+
+## Executive Summary
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Project Overview
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+The 22-23 Satisfaction survey was distributed April of last year to determine **ways of improving the employee experience at ResponsiveEd**. Alan Calvillo was tasked with determining trends in the data and reporting his findings.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Initial Presentation of Findings
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Alan Calvillo created a results dashboard and Google Slide presentation upon completion of his analysis. His analysis consisted of **examining multiple-choice scores to determine any major trends, and drawing trends from the free-response portion if no major trends were found in the multiple-choice portion**. "Major trends" would be classified as survey questions that **clearly and obviously** received low scores across **1 or more** demographic slice(s). The benchmark for determining a question as being "clearly and obviously" negatively rated was intuitively set at **20%** (unfavorable rating) due to the "I am paid fairly" question, which never fell below **21%** across **all demographic slices**.
+
+Under this criteria, **only one question** (I am paid fairly) was universally negatively rated, all others received mixed reviews across demographics. Because of this, focus was shifted to the free-response portion of the survey to draw notable trends. Trends in the free response portion of the survey were determined by **reading a sample of about 200 responses, where a topic would be considered trending if it was mentioned in more than 5 responses within the sample**. Recommendations to address trending topics were created by Alan Calvillo & Casey Morgan using suggestions provided by the responses when available, and by formulating educated guesses on the best way to address trending topics when not. Using this simple sampling methodology, the following trends and recommendations were provided in the initial Google Slide Presentation.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r packages, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyr)
+library(dplyr)
+library(tidytext)
+library(ggplot2)
+library(scales)
+library(readxl)
+library(stringr)
+library(DT)
+library(knitr)
+library(kableExtra)
+library(patchwork)
+library(tm)
+library(text2vec)
+library(wordcloud)
+library(RColorBrewer)
+library(e1071)
+library(binom)
+library(googlesheets4)
+
+#start by loading in the "responses" data set from Excel
+dataset1 = read_excel("Comment Report - 07.20.2023.xlsx", 
+    sheet="Comments")
+
+comments_tbl = as_tibble(dataset1)
+
+initial_table = read_excel("Comment Report - 07.20.2023.xlsx", 
+    sheet="Initial Table")
+
+datatable(initial_table,
+          style = 'bootstrap',
+          caption = 'Table of Trending Topics & Initial Recommendations Provided in the Google Slide Presentation',
+          rownames = FALSE,
+          options = list(
+            pageLength = 5,  # Set the number of rows to display per page
+            columnDefs = list(
+                list(className = 'dt-center', targets = '_all')
+            )))
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Purpose of this Report
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Upon reviewing the presentation with Casey Morgan & Pete Alonzo, the executive team tasked Alan Calvillo with providing more conclusive evidence for the recommendations provided in the presentation. **Since the recommendations originally provided came from aggregating topics mentioned in the free-response portion of the survey, conclusive evidence would be provided via similar methodology**. Specifically, this report aimed to **classify all free-responses** into falling into one (or more) of the [12 major topics](#report_intro) used to draw the recommended action items in the original presentation. Due to the large amount of textual data from the survey, a machine learning model was attempted to be used for text classification. The model was unsuccessful, and sample estimation was ultimately used to calculate conclusive results.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Findings of this Report
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+**Proportional sample estimation** & **weight-adjusted sample estimation** was used to estimate the percentage of employees that mention the trending topics provided in the original presentation. Doing this would essentially rank the topics by importance through the creation of a comparable metric in the form of a **topic mention rate** (frequency at which each topic is mentioned in a given sample). We decided to narrow down definitive results to only the **top 3 most frequently mentioned topics**, which allowed us to provide multiple clear and concise action items (updated recommendations) for each of the 3 topics. These recommendations differ from the initial ones since the majority of the initial recommendations used survey responses to form an **educated guess** on the best solution, where updated recommendations definitively used **frequently mentioned suggestions** directly from survey responses. We believe that **addressing the areas of concern that are mentioned by the most amount of people, would have the biggest impact on our workforce as a whole.**
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r updated-recs, echo=FALSE, message=FALSE, warning=FALSE}
+
+updated_table = read_excel("Comment Report - 07.20.2023.xlsx", 
+    sheet="Updated Table")
+
+datatable(updated_table,
+          style = 'bootstrap',
+          caption = 'Table of Initial & Updated Recommendations',
+          rownames = FALSE,
+          options = list(
+            pageLength = 5,  # Set the number of rows to display per page
+            columnDefs = list(
+                list(className = 'dt-center', targets = '_all')
+            )))
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+## Report Introduction {#report_intro}
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+The goal of the following report is to provide supplemental evidence for the recommended action items & solutions provided by Alan Calvillo & Casey Morgan, in the 22-23 Satisfaction Survey Google Slide Presentation. Evidence in favor of our recommendations will be determined by aggregating survey responses that mention one or more of the following topics, where each topic represents an area of concern that our original recommendations aimed to address:
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+1.  **Feeling understaffed or overworked**
+2.  **More opportunities to voice concerns**
+3.  **Home office representation at campus level**
+4.  **Staff recognition**
+5.  **Staff amenities or events**
+6.  **Issue with student disciplinary system**
+7.  **Improve communication**
+8.  **More PTO**
+9.  **Building improvements and maintenance**
+10. **Issues or praise for CD**
+11. **More or better training**
+12. **Increase in compensation**
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+These topics aren't listed in any particular order, the numbers assigned are included solely for the purpose of data manipulation. These topics were deemed areas of interest after reading through a sample of about 200 random responses, where each topic was mentioned more than 5 times throughout the sample. Having been given free-reign and no particular direction for extrapolating trend from the data, we chose to focus on the free-response portion of the survey to draw recommended action items for two reasons:
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+1.  **Lack of significant trend in Likert scale questions**
+2.  **Generating ideas for addressing areas of concern directly from the source**
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+The 22-23 satisfaction survey consisted of a multiple choice section made up of 39 Likert scale questions, and a free-response section consisting of 5 open-ended custom questions. Upon completion of the survey, Alan Calvillo was tasked with creating a dashboard to view the data graphically. He was then tasked with creating a presentation of findings and any recommended action items, which would be edited/curated by Casey Morgan.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+::: {style="text-align: center;"}
+<img src="https://drive.google.com/uc?export=view&amp;id=1Cc00R2jdfT1V3NluwmKiQdZKytaxPc8i" alt="Image 1.0" style="width: 80%;"/>
+:::
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Logically, one could look to the distribution of scores per question and pick out the top $x$ lowest rated questions to use as a starting point. The reason we didn't do that was because only one of the 39 Likert scale questions was universally rated unfavorably across all demographic segments (age, tenure, location, etc.), which was the `I am paid fairly` question. In other words, we didn't source responses for the top $x$ lowest ranked Likert scale questions, because the order of them changes with each demographic segment (with the exception of the `I am paid fairly` question). While we could have calculated unfavorable percentage without breaking it down into demographic groups, doing so would have nullified the 2 months spent creating the dashboard to view granular differences in the first place. Even so, we wouldn't have been able to easily find & filter open-ended responses for those that rated questions unfavorable due to not being given access to a full data set from Quantum for the sake of respondent anonymity. We would have had to manually search for responses that linguistically "match" topics/sentiment of the negatively rated Likert scale questions. We cover why something like this would prove difficult to do in [Section 2.1](#section_2.1), and it's ultimately the reason we chose to aggregate the responses to generate relevant topics instead of trying to match responses to the topics of the Likert scale questions.
+
+Additionally, using the free-response portion of the survey not only gave us definitive areas of interest, but also gave us ideas for specific solutions sourced directly from the people being surveyed. Now that we've highlighted the reasoning used to determine our areas of interest, lets go over the contents of this report. This report consists of:
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+1.  **A preliminary analysis of the comment data as a whole**
+2.  **An attempt to analyze the data using a machine learning language model**
+3.  **A sentiment analysis using sample estimation**
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Let's move on to the first section of this report, which consists of a detailed analysis of the survey responses as a whole.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+------------------------------------------------------------------------
+
+## 1.0 Preliminary Analysis
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Since it's been a while since we've thought about the survey responses, I thought it would be beneficial to begin by summarizing the data as a whole by showcasing general information. This will include things such as the distribution of responses across brands/questions, and examining the lengths of the responses themselves.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+### 1.1 Response Counts
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+The preliminary analysis essentially kills two birds with one stone by introducing the types of data visualizations to be used in the response categorization, as well as creating the sub data sets needed to categorize the responses. Let's start by answering a couple basic questions:
+
+> How many total responses did we receive? Did some questions receive more responses than others?
+
+```{r plot-one, echo= FALSE, fig.width= 9, fig.height= 5}
+ggplot(data = dataset1) +
+  geom_bar(mapping = aes(x = Question, fill = Question), stat = "count") +
+  geom_text(stat = 'count', aes(x = Question, label = after_stat(count)),
+            position = position_stack(vjust = 0.9), color = "white") +
+  scale_x_discrete(labels = wrap_format(28)) +
+  scale_y_continuous(limits = c(0,2000)) +
+  labs(y = "Responses", x = "") +
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5), axis.title.x = element_blank()) +
+  ggtitle("Chart 1: Total Responses Per Question")
+
+#ALT could have had "theme(legend.position = "none", axis.text.x = element_text(angle = 45, hjust = 1))" which would have tilted the x-axis labels (Questions) at a 45 degree angle
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+As we can see from the graph above, not all the questions received a response, which is likely due to the order in which the questions were asked. This leads us to our next question, now that we've seen the difference in the amount of responses ***per question***...
+
+> Can we see the difference in responses per brand?
+
+In order to find this out, we'll have to create a new count table that sums the number of responses per brand. Although the task seems simple enough, we first have to create a new dataframe that adds a brand distinction, sum the responses per question for each brand, then sum the question totals for each brand. Additionally, we'll do some data manipulation to shorten the original `Location` and `Question` names, just in case we want to see specific campuses or question breakdowns in later graphs.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r generating-counts, echo=FALSE, message=FALSE}
+#creating a count df of all locations, while adding a brand variable based on the original location names, and shortening the names of the questions
+all_location_response_counts<- dataset1 %>%
+  mutate(
+    Brand = if_else(str_detect(Location, "-"), word(Location, 1, sep = "\\s*-\\s*"), "N/A"),
+    Location = if_else(str_detect(Location, "-"), sapply(str_split(Location, "-"), function(x) trimws(x[length(x)])), Location),
+    Question = case_when(
+      str_detect(Question, "Please explain why you rated the organization as you did.") ~ "WHY Question",
+      str_detect(Question, "What is one thing you would like your organization to START doing to make it a better place to work?") ~ "START Question",
+      str_detect(Question, "What is one thing you would like your organization to STOP doing to make it a better place to work?") ~ "STOP Question",
+      str_detect(Question, "What is one thing you would like your organization to CONTINUE doing that makes it a great place to work?") ~ "CONTINUE Question",
+      TRUE ~ Question)) %>%
+  group_by(Brand, Location, Question) %>%
+  summarise(total_responses = n(), .groups = 'drop')
+
+all_location_response_counts_sum <- sum(all_location_response_counts$total_responses)
+
+# Creating another count df for total responses per BRAND for each question
+brand_question_totals <- all_location_response_counts %>%
+  group_by(Brand, Question) %>%
+  summarise(sum_total_responses = sum(total_responses)) %>%
+  arrange(desc(sum_total_responses))
+
+# Creating a df  specifically to act as a total sum for the kable table below, that sums up the response totals per question for each brand
+brand_totals <- brand_question_totals %>%
+  group_by(Brand) %>%
+  summarise("Total per Brand" = sum(sum_total_responses))
+
+# Pivot wider and join with brand_totals to include the Total column
+brand_responses_wide <- brand_question_totals %>%
+  pivot_wider(
+    names_from = Question,       # Use 'Question' values to define new column names
+    values_from = sum_total_responses  # Fill the new columns with values from 'sum_total_responses'
+  ) %>%
+  left_join(brand_totals, by = "Brand")  # Join to add the Total column
+
+brand_table <- kable(brand_responses_wide, "html", caption = "Table 1: Total Responses per Brand per Question") %>%
+  kable_styling(full_width = FALSE) %>%
+  column_spec(ncol(brand_responses_wide), 
+              background = "lightgrey", # Visually distinguish the Total column
+              bold = TRUE)
+# Render the styled table in R Markdown
+brand_table
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+We can see from the table that Founders received the highest total responses by a large margin. While the table above is very informative, we can get a clearer picture of these differences by using a detailed bar chart.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r plot-two, echo=FALSE, fig.width= 9, fig.height= 5}
+
+# Here we're using the `reorder` argument imbeded into the `aes` argument to reorder both the questions and the brands in a descending fashion according to the "sum_total_responses" variable
+ggplot(data = brand_question_totals, aes(x = reorder(Question, -sum_total_responses), y = sum_total_responses, fill = reorder(Brand, -sum_total_responses))) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(limits = c(0, 600)) +
+  geom_text(aes(label = sum_total_responses, y = sum_total_responses + 20), 
+            position = position_dodge(width = 0.9), angle = 90, vjust = 0.5, 
+            color = "black", size = 3.0) +
+  labs(y = "Responses Per Question", x = "", fill = "Brand") +
+  theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank()) +
+  ggtitle("Chart 1.1: Total Responses Per Question Broken Up by Brand")
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Thanks to this graph, now we can clearly see both the difference in the amount of responses **per brand** and the amount of responses **per question**. For each question, Founders employees provided over double the amount of responses than the next highest brand (PHS). The third highest group (in all but the `General Comments` question) were those that selected `Prefer not to Disclose`, followed by Ignite, Home Office, Quest, iSVA, Blue-X, & Bright Thinker.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+------------------------------------------------------------------------
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+### 1.2 Response Percentages
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+We can expand upon these response counts by examining them within the context of the data set as a whole, specifically by seeing the same data as percentages. Let's start by answering a simple question,
+
+> Since we know that the "START" question received the most responses, do we know what percentage of total responses were for that question? What about the other 4?
+
+```{r percent-breakdown, echo=FALSE, warning=FALSE, fig.width= 9, fig.height= 3.5}
+
+# Step 1: Summarize total_responses by Question
+all_question_totals <- all_location_response_counts %>%
+  group_by(Question) %>%
+  summarise(Total = sum(total_responses)) %>%
+  ungroup()
+
+# Calculate the total sum of all responses for use in scaling the x-axis
+all_grand_total <- sum(all_question_totals$Total)
+
+# Step 2: Calculate the percentage make-up for each Question
+all_question_totals <- all_question_totals %>%
+  mutate(Percent = Total / all_grand_total * 100)
+
+# Step 3: Create the visualization
+ggplot(all_question_totals, aes(x = "", y = Total, fill = reorder(Question, Total))) +
+  geom_bar(stat = "identity", position = "fill") +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), position = position_fill(vjust = 0.5), size = 3.5) +
+  scale_x_discrete("", breaks = NULL) + # Remove x axis ticks and text
+  scale_y_continuous(labels = scales::percent_format()) +
+  coord_flip() + # Flip to make the bar horizontal
+  labs(fill = "Question", y = "Percent of Whole (5,598)", x = NULL, title = "Chart 1.2: Percentage of Total Responses Each Question Received") +
+  scale_fill_brewer(palette = "Set2") + # Use a color palette for better distinction
+  theme(legend.title = element_text(size = 12), plot.title = element_text(hjust = 0.5),
+        legend.text = element_text(size = 10),
+        plot.background = element_rect(color = "black", size = 1.5, fill = NA), #border whole graph
+        panel.border = element_rect(color = "grey92", fill = NA, size = 1.5)) #border just chart
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Roughly 27% of all responses were answering the "START" question. Looking at the percentage differences, we can see that the first 3 questions received roughly the same amount of responses with $<3%$ variance drop-off. This is favorable for our analysis since the `START`, `CONTINUE`, & `STOP` questions are phrased toward receiving targeted/specific answers. The `WHY` & `General Comments` questions are phrased more for providing context to answers, or supporting answers of the first 3 questions. We can also produce the same stacked bar chart to see the percent break-down of responses by **brand**:
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r percent-breakdown-two, echo=FALSE, warning=FALSE, fig.width= 9, fig.height= 3.5}
+
+# Step 1: Summarize total_responses by Question
+all_brand_totals <- all_location_response_counts %>%
+  group_by(Brand) %>%
+  summarise(Total = sum(total_responses)) %>%
+  ungroup()
+
+# Step 2: Calculate the percentage make-up for each Question
+all_brand_totals <- all_brand_totals %>%
+  mutate(Percent = Total / all_grand_total * 100)
+
+# Step 3: Create the visualization
+ggplot(all_brand_totals, aes(x = "", y = Total, fill = reorder(Brand, Total))) +
+  geom_bar(stat = "identity", position = "fill") +
+  geom_text(aes(label = ifelse(Brand %in% c("BX", "BT"), NA, paste0(round(Percent, 1), "%"))), position = position_fill(vjust = 0.5), size = 3.5) +
+  scale_x_discrete("", breaks = NULL) + # Remove x axis ticks and text
+  scale_y_continuous(labels = scales::percent_format()) +
+  coord_flip() + # Flip to make the bar horizontal
+  labs(fill = "Brands", y = "Percent of Whole (5,598)", x = NULL, title = "Chart 1.3: Percentage of Total Responses Each Brand Contributed") +
+  theme(legend.title = element_text(size = 12), plot.title = element_text(hjust = 0.5),
+        legend.text = element_text(size = 10),
+        plot.background = element_rect(color = "black", size = 1.5, fill = NA), #border whole graph
+        panel.border = element_rect(color = "grey92", fill = NA, size = 1.5)) #border just chart
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+From this graph we can see that Founders makes up the largest share of responses at just over **34%**. Another important feature to highlight is that `N/A` responses account for over **10%** of the total, which is worth noting as it's not an insignificant amount. What are rather insignificant amounts are the percentages of responses that came from **Blue-X (0.76%)** & **Bright Thinker (0.58%)**.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+------------------------------------------------------------------------
+
+### 1.3 Participation Rate {#section_1.3}
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Another key metric we should revisit is the **participation rate**, ideally, we would calculate the participation rate with the following formula: $$participation~rate=(\frac{total~respondents}{total~workforce})~*~100$$
+
+The main issue with trying to accurately determine this percentage is that we did not have access to a unique identifier for determining the number of respondents, Quantum withheld this data for the purpose of anonymity. Because of this, the only field we could use to determine participation was `Count of Responses`, which showed the count of responses per each question. This was used in the dashboard to determine **"Total Survey Responses"** by dividing the total number of responses by the total number of questions, but only for the multiple-choice portion of the survey. $$75,752~individual~responses~/~39~questions~=~1,942.358~total~respondents$$ Quantum divided the reporting elements of the survey by multiple-choice and free-response, and only included the `Count of Responeses` field in the multiple choice reporting elements. Luckily we can apply the same logic to the free-response data in order to find $total~participants$ and use that figure to find $participation~rate$. First we'll divide the number of total responses by the number of questions to get the total number of respondents: $$5,598~responses~/~5~questions~=~1,119.6~total~respondents$$ Now that we have the number of total respondents, let's determine the number for $total~workforce$. We know that the survey was made available to every employee of the company including substitutes. So we'll take the average staff counts for all of our corporate entities (RES, Blue Learning, & Bright Thinker) at the time that the surveys were sent out, and sum them all together.^**1**^ We can estimate our total 22-23 workforce population as: $$2,820~Total~RES~Staff~+~253~Substitutes~+~80~Blue~Learning~Staff~+~22~Bright~Thinker~Staff~=~3,175~Total~Workforce$$ Now lets plug all these figures into our original formula to calculate the participation rate: $$(\frac{1,119.6}{3,175})~*~100~=~35.26$$
+
+This gives us a ***comment*** participation rate of **35%**. It's obvious that this metric represents an average participation rate and not an actual rate, which is largely due to the variability in the number of responses per each question. While there's no way to get a complete actual rate, we can calculate the actual rate of participants who answered at least ***one*** question fairly easily.
+
+Taking the values for the question with the greatest number of responses (which was the "START" question in all instances) from each brand and summing them all up gives a total respondent count of $1,486$. So if we measured comment participation as the percentage of total workforce that answered at least 1 question, then our actual participation rate would be: $$(\frac{1,492}{3,175})~*~100~=~46.99$$ a **47%** participation rate is a major improvement from **35%**. An added bonus is that the question that received the most answers happens to be one of the three most important ones to this analysis. Measuring participation rate this way could be considered a more accurate approach as the questions that are less relevant to this analysis were the ones that received the fewest responses, and thus were drastically lowering the original participation rate by being included in the average calculation.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+^**1**^ These figures were recorded in August of 2023 and are accurate active staff counts for May of 2023
+
+------------------------------------------------------------------------
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+### 1.4 Examining Response Quality
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Now that we have a good general sense of the variation in the amount of responses, we can begin examining the **quality** of the responses. Let's begin by looking at the length of responses per each question. This can be done by adding an `answer_length` field to our original data set, and plotting the values in a **box and whisker plot**. Before doing so however, we can briefly cover how to interpret a box and whisker plot.
+
+A **box plot** is used to display the 5 number summary of the data being explained, meaning that the 5 major elements of a box plot are:
+
+::: {style="overflow: hidden;"}
+<img src="https://drive.google.com/uc?export=view&amp;id=1Kmt-thjjGozEVMcHnTKvyFUJlvgxpWGP" alt="Image 1" style="width: 40%; float: left; margin-right: 20px;"/>
+
+<ol>
+
+<li>the **median**: middle value of the entire data set</li>
+
+<li>the **1st Quartile (Q1)**: median of the first half of the data; represents the 25th percentile</li>
+
+<li>the **3rd Quartile (Q3)**: median of the second half of the data; represents the 75th percentile</li>
+
+<li>the **minimum**: smallest value in the dataset</li>
+
+<li>the **maximum**: largest number in the dataset</li>
+
+</ol>
+:::
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+The last element of box plots that aren't necessarily covered in a 5 number summary are outliers. Outliers are calculated using the **Interquartile Range (IQR)** where $IQR~=~Q3~-~Q1$. The IQR is then used to calculate lower range outliers (observations that fall below $Q1~-~1.5*IQR$) and upper range outliers (observations that fall above $Q3~+~1.5*IQR$).
+
+That being said, let's run a 5 number summary to see the response length breakdown for each of our questions.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r shortening-and-categorizing, echo=FALSE}
+dataset1.1 <- dataset1 %>%
+  mutate(
+    answer_length = str_count(Answer, "\\S+"),
+    Brand = if_else(str_detect(Location, "-"), word(Location, 1, sep = "\\s*-\\s*"), "N/A"),
+    Location = if_else(str_detect(Location, "-"), sapply(str_split(Location, "-"), function(x) trimws(x[length(x)])), Location),
+    Question = case_when(
+      str_detect(Question, "Please explain why you rated the organization as you did.") ~ "WHY Question",
+      str_detect(Question, "What is one thing you would like your organization to START doing to make it a better place to work?") ~ "START Question",
+      str_detect(Question, "What is one thing you would like your organization to STOP doing to make it a better place to work?") ~ "STOP Question",
+      str_detect(Question, "What is one thing you would like your organization to CONTINUE doing that makes it a great place to work?") ~ "CONTINUE Question",
+      TRUE ~ Question)
+  ) %>%
+  arrange(answer_length) %>%
+  select(Brand, Location, Question, Answer, answer_length = answer_length)
+
+dataset1.1_5numsum <- dataset1.1 %>%
+  group_by(Question) %>%
+  summarise(
+    Min = min(answer_length),
+    Q1 = quantile(answer_length, 0.25),
+    Median = median(answer_length),
+    Q3 = round(quantile(answer_length, 0.75)),
+    Max = max(answer_length))
+
+dataset1.1_5numsum_table <- kable(dataset1.1_5numsum, "html", caption = "Table 1.2: 5 Number Summary of Answer Length per Question") %>%
+  kable_styling(full_width = F, position = "float_left") %>%
+  column_spec(1, background = "lightgrey", bold = TRUE)
+
+dataset1.1_5numsum_table
+```
+
+::: {style="margin-bottom: 120px;"}
+:::
+
+      We can see from these summaries that the values for the first 3 questions       appear to be smaller than the values for the `WHY Question` & the       `General Comments` questions. This could indeed support our hypothesis that       the first 3 questions will hold the majority of useful information in our analysis,       and that the last provide ancillary (but not neccessary) data. We'll explore this       further in the second half, but for now let's plot the data in a box plot so we can       see the data in a visual context.
+
+::: {style="clear: both;"}
+:::
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+::: {style="text-align: center;"}
+```{r box-plot-one, echo=FALSE, fig.width= 7, fig.height= 4}
+
+# Convert 'Question' to a factor with levels in the desired order
+dataset1.1$Question <- factor(dataset1.1$Question, 
+                                            levels = c("START Question", "CONTINUE Question", "STOP Question", "WHY Question", "General Comments"))
+
+ggplot(data = dataset1.1, aes(x = Question, y = answer_length, color = Question)) +
+  geom_boxplot(outlier.color = "black") +
+  labs(y = "Answer Length", x = NULL, title = "Chart 1.4: Box Plot of Answer Length per Question") +
+  theme(plot.title = element_text(hjust = 0.5), plot.background = element_rect(color = "black", 
+  size = 1.5, fill = NA), legend.position = "none")
+
+```
+:::
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Here we can see that the IQR (represented by the white boxes) is largest in the `WHY Question` and the `General Comments` question. We also see that the `WHY Question` appears to have both the greatest ***amount*** of outliers, and the most outliers greater than 200 words. This adds support to our theory discussed earlier, let's take a closer look by examining a random sample from the `WHY Question` pool of responses, and comparing it to a random sample from the `START Question` pool. Let's start by looking at some responses to the `START Question`:
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r sample-one, echo=FALSE}
+#setting the seed for reproducibility
+set.seed(444)
+
+start_subset1 <- dataset1.1 %>%
+  filter(Question == "START Question") %>%
+  sample_n(100)
+
+datatable(start_subset1,
+          style = 'bootstrap',
+          caption = 'Table 1.4: Random Sample of "...thing you would
+          like your organization to START doing..." Responses',
+           options = list(pageLength = 5))
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Just doing an initial comb through of this data, we can see that that the majority of comments tend to be relatively short, without many lengthy personal grievances or anecdotes. That being said, it's just an initial observations, we'll need to produce a random sample for the `WHY Question` as well.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r sample-two, echo=FALSE}
+set.seed(444)
+
+why_subset1 <- dataset1.1 %>%
+  filter(Question == "WHY Question") %>%
+  sample_n(100)
+
+datatable(why_subset1,
+          style = 'bootstrap',
+          caption = 'Table 1.3: Random Sample of "...explain WHY you rated the organization as you did..." Responses',
+           options = list(pageLength = 5))
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+This sample for the `WHY question` shows some lengthy responses, especially when compared to the `START question` sample. let's take a side by side look at the summary statistics of these samples versus their populations, to see if they look similar.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r sample-summary, echo=FALSE}
+
+#creating the objects for the START values, starting with creating a subset of all the START responses
+start_dataset1 = dataset1.1 %>%
+  filter(Question == "START Question")
+
+start_dataset1_5numsum_long <- start_dataset1 %>%
+  summarise(
+    Minimum = round(min(answer_length)),
+    "1st Quartile (Q1)" = round(quantile(answer_length, 0.25)),
+    Median = round(median(answer_length)),
+    "3rd Quartile (Q3)" = round(quantile(answer_length, 0.75)),
+    "Maximum" = round(max(answer_length))) %>%
+  mutate(Type = "Actual") %>%
+  pivot_longer(cols = -Type, names_to = "Statistic", values_to = "Value")
+
+start_subset1_5numsum_long <- start_subset1 %>%
+  summarise(
+    Minimum = round(min(answer_length)),
+    "1st Quartile (Q1)" = round(quantile(answer_length, 0.25)),
+    Median = round(median(answer_length)),
+    "3rd Quartile (Q3)" = round(quantile(answer_length, 0.75)),
+    "Maximum" = round(max(answer_length))) %>%
+  mutate(Type = "Sample") %>%
+  pivot_longer(cols = -Type, names_to = "Statistic", values_to = "Value")
+
+start_5numsum_combined_wide <- bind_rows(start_dataset1_5numsum_long, start_subset1_5numsum_long) %>%
+  pivot_wider(names_from = Type, values_from = Value)
+
+# Create the kable
+start_subset1_combined_table <- kable(start_5numsum_combined_wide, "html", caption = "Table 1.3: 5 Number Summary Comparison of the Full START Subset & START Sample") %>%
+  kable_styling(full_width = F, position = "float_left") %>%
+  column_spec(1, background = "lightgrey", bold = TRUE)
+
+start_subset1_combined_table
+
+#creating the objects for the WHY values, starting with creating a subset of all the WHY responses
+why_dataset1 = dataset1.1 %>%
+  filter(Question == "WHY Question")
+
+why_dataset1_5numsum_long <- why_dataset1 %>%
+  summarise(
+    Minimum = round(min(answer_length)),
+    "1st Quartile (Q1)" = round(quantile(answer_length, 0.25)),
+    Median = round(median(answer_length)),
+    "3rd Quartile (Q3)" = round(quantile(answer_length, 0.75)),
+    "Maximum" = round(max(answer_length))) %>%
+  mutate(Type = "Actual") %>%
+  pivot_longer(cols = -Type, names_to = "Statistic", values_to = "Value")
+
+why_subset1_5numsum_long <- why_subset1 %>%
+  summarise(
+    Minimum = round(min(answer_length)),
+    "1st Quartile (Q1)" = round(quantile(answer_length, 0.25)),
+    Median = round(median(answer_length)),
+    "3rd Quartile (Q3)" = round(quantile(answer_length, 0.75)),
+    "Maximum" = round(max(answer_length))) %>%
+  mutate(Type = "Sample") %>%
+  pivot_longer(cols = -Type, names_to = "Statistic", values_to = "Value")
+
+why_5numsum_combined_wide <- bind_rows(why_dataset1_5numsum_long, why_subset1_5numsum_long) %>%
+  pivot_wider(names_from = Type, values_from = Value)
+
+# Create the kable
+why_subset1_combined_table <- kable(why_5numsum_combined_wide, "html", caption = "Table 1.4: 5 Number Summary Comparison of the Full WHY Subset & WHY Sample") %>%
+  kable_styling(full_width = F, position = "float_left") %>%
+  column_spec(1, background = "lightgrey", bold = TRUE)
+
+why_subset1_combined_table
+```
+
+::: {style="margin-bottom: 120px;"}
+:::
+
+      This looks very promising, the summary statistics are       extremely close, especially since the population of the       `START Question` & `WHY Question` are $1492$ & $934$       responses respectively. Lastly, let's see one more         side-by-side comparison of the populations and       samples as box plots to end the preliminary analysis.
+
+::: {style="clear: both;"}
+:::
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r box-plot-two, echo=FALSE, fig.width=9, fig.height=5}
+
+# Add a new column to each dataset to indicate the dataset type
+start_dataset1$Type <- "Full Dataset"
+start_subset1$Type <- "Subset"
+
+# Combine the datasets
+start_combined_data1 <- bind_rows(start_dataset1, start_subset1)
+
+# Ensure 'Type' is a factor for better ordering in the plot
+start_combined_data1$Type <- factor(start_combined_data1$Type, levels = c("Full Dataset", "Subset"))
+
+start_combined_plot <- ggplot(data = start_combined_data1, aes(x = Type, y = answer_length, color = Type)) +
+  geom_boxplot(outlier.color = "black") +
+  labs(y = "Answer Length", x = NULL, title = str_wrap("Chart 1.5: Box Plot of Full START Subset & START Sample", width = 30)) +
+  theme(plot.title = element_text(hjust = 0.5), plot.background = element_rect(color = "black", 
+  size = 1.5, fill = NA), legend.position = "none")
+
+# Add a new column to each dataset to indicate the dataset type
+why_dataset1$Type <- "Full Dataset"
+why_subset1$Type <- "Subset"
+
+# Combine the datasets
+why_combined_data1 <- bind_rows(why_dataset1, why_subset1)
+
+# Ensure 'Type' is a factor for better ordering in the plot
+why_combined_data1$Type <- factor(why_combined_data1$Type, levels = c("Full Dataset", "Subset"))
+
+why_combined_plot <- ggplot(data = why_combined_data1, aes(x = Type, y = answer_length, color = Type)) +
+  geom_boxplot(outlier.color = "black") +
+  labs(y = "Answer Length", x = NULL, title = str_wrap("Chart 1.6: Box Plot of Full WHY Subset & WHY Sample", width = 30)) +
+  theme(plot.title = element_text(hjust = 0.5), plot.background = element_rect(color = "black", 
+  size = 1.5, fill = NA), legend.position = "none")
+
+#arranging the plots side-by-side using patchwork()
+start_combined_plot + why_combined_plot
+
+```
+
+```{r unused-chunk, echo=FALSE}
+#unused statistical test segment, keeping for sake of notes
+
+#Just to make sure that these samples represent an accurate picture of our population, we can use a statistical test known as the Kolmogorov-Smirnov Test or **KS Test** for short. The KS test is a type of statistical test that measures and compares the shape of the data by: 
+
+#1. measuring the maximum distance between between all the values,
+#2. measuring the cumulative distribution make-up of all the values, and
+#3. comparing these results against it's own significance levels to determine whether they could be the product of a random sample, or if they vary too much from the population and don't represent an accurate sample.
+
+#There are many different tests we could use here, but most tests require your data set to follow a normal distribution (bell curve) in order to work accurately. Since we don't exactly know the distribution of our data, we'll opt for the KS test here since it can accurately test data with any kind of distribution. All we need are the mean and standard deviation of our population data set(s)."
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Now that we've covered the basics around the comment data as a whole we can move onto the main purpose of this analysis, which is the estimation of topic representation among our survey responses. We'll start by attempting to make a machine learning model that can accurately categorize responses into a predefined list (the recommendations given in the survey presentation) on our behalf.
+
+Recall that the question that received the most responses, and likely holds the most useful information, was the `START Question`. Due to the tremendous amount of work it takes to train and tune a model of this caliber, we'll only be creating one model that analyzes the responses to the "***Please explain what you would like your organization to START doing to make it a better place to work***".
+
+```{r start-dataset-justincase, echo=FALSE}
+
+dataset1.2 = dataset1.1 %>%
+  mutate(
+    "standardized answer" = str_replace_all(tolower(Answer), "[[:punct:]]", ""),
+    "standardized answer length" = str_count("standardized answer", "\\S+")) %>%
+  arrange("answer length")
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+------------------------------------------------------------------------
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+## 2.0 Response Categorization Using Machine Learning Classification
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+### 2.1 Highlighting the Problem with Simple Topic Classification {#section_2.1}
+
+The simplest way we could approach response categorization would be to manually sort, filter, and label responses using things like Excel functions to do partial matches (REGEXP, FILTER, etc.). The problem is that this approach is extremely impractical, especially because our data set consists of over 5,000 individual responses.
+
+Additionally, even regular expressions would be hard to use due to the variability in the formatting and capitalization of words and responses throughout our data set. As an example, let's filter our entire data set to view responses that appear more than once, to see how our data is aggregated by default.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r all-repeat-responses, echo=FALSE}
+
+all_answer_counts = dataset1.1 %>%
+  count(Answer, sort= TRUE) %>%
+  filter(n >= 2)
+
+all_sum_raw_repeat <- sum(all_answer_counts$n)
+
+datatable(all_answer_counts, 
+          colnames = c('# of Occurances' = 'n'),
+          style = 'bootstrap',
+          caption = 'Table 2.0: All Responses That Show Up More Than Once',
+          options = list(
+            pageLength = 10,
+            drawCallback = JS(
+              paste0("function(settings) {",
+                     "  var api = this.api();",
+                     "  $(api.table().container()).find('.dataTables_info').each(function() {",
+                     "    var text = $(this).text();",
+                     "    text = text.replace('entries', 'Unique Responses');",
+                     "    $(this).text(text);",
+                     "  });",
+                     "  var info = $(api.table().container()).find('.dataTables_info');",
+                     "  info.html(info.html() + ' <span style=\"font-weight: bold;\">", "(Sum of Total: ", all_sum_raw_repeat, ")</span>');",
+                     "}"))))
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Just as I suspected, there are ***a lot*** of repeat answers that aren't being grouped together just because of subtle nuances in the way that they're spelled or stylized. Take the term `N/A` for example, it appears in our data set several times as: `na`, `Na`, `N/a`, etc... This causes issues when trying to calculate the exact number of times a specific response was given.
+
+Because formulas are case-sensitive by default, they don't automatically recognize "na" & "N/A" as being the same response. While this isn't necessarily a big issue, it definitely makes simple categorization using spreadsheet functions a lot harder and more time-consuming. This is something we'll address again in later portions, but I wanted to bring it up before we begin model creation to provide reasoning behind using modeling instead of traditional data cleansing methods.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+### 2.2 Creating our Machine Learning Model for Topic Classification {#section_2.2}
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+***This portion of the report covers an attempt at making a machine learning text classification model which was ultimately not used to determine employee sentiment. To skip to the portion of the report that ended up being used (sample estimation), [click here](#section_3)***
+
+Now lets begin analyzing the responses from the `start_dataset`, This part of our analysis involved a fair bit of natural language processing (NLP), which is a field in data analytics that can be used to process, analyze, and generate language using statistics and machine learning.
+
+The type of NLP we're doing here is called **Topic Modeling**, and there are actually two methods we can use here. The first way is an **aggregate analysis**, which approaches the task of finding trends by analyzing each response in the context of the entire data set. This approach would be beneficial to do if we didn't already have a predefined list of topics we wish to extract from the data, which leads us to our second method.
+
+The second method is an **individual analysis** using **text classification**, which essentially summarizes each response down to their specific topic(s) in order to aggregate them into our predefined list of topics. This will be done by completing the following steps:
+
+1.  **Creating and labeling a training subset of responses**
+2.  **Converting text data into a format suitable for modeling (feature extraction)**
+3.  **Using the subset to train a text classification model**
+4.  **Using the trained model to classify the rest of the data**
+5.  **Aggregating the results**
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 id="section_2_step_1" align="center">
+
+Step 1: Creating the `training_subset`
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+In order to complete step 1, we'll have to create a training subset from our `start_dataset` that labels each response as falling into 1 **or more** of our predefined topics. This subset will be used to train a machine learning model on what to look for in the rest of the text data, in order to accurately assign it one or more of the following predefined topics:
+
+1.  **Feeling understaffed or overworked**
+2.  **More opportunities to voice concerns**
+3.  **Home office representation at campus level**
+4.  **Staff recognition**
+5.  **Staff amenities or events**
+6.  **Issue with student disciplinary system**
+7.  **Improve communication**
+8.  **More PTO**
+9.  **Building improvements and maintenance**
+10. **Issues or praise for CD**
+11. **More or better training**
+12. **Increase in compensation**
+
+There's no exact number of responses we need to manually label for our training data set, we just need to make sure we label enough to capture the variability in our responses, and a more or less even number of responses that can be labeled as being apart of each of the 12 predefined topics. We'll aim to include about **10%** ($149.2$) of the total responses in our training set, where each topic is adequately represented. Since $149$ responses is exactly **10%**, we'll try to get at least an even number of responses for each topic (12 per each), We can see our training set down below
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r full-trainer, echo=FALSE, results='asis', message=FALSE}
+cat('<div id="table_2.1">')
+start_training_set <- read_excel("Copy of Comment Report.xlsx", 
+                                 sheet="START Training Subset")
+datatable(start_training_set,
+          style = 'bootstrap',
+          caption = 'Table 2.1: Targeted Training Sample of "...one thing you would like your organization to START doing..." Responses',
+          options = list(pageLength = 5,
+                         order = list(list(3, 'desc'))))
+
+cat('</div>')
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Representation isn't exactly even across all of our topics, but that shouldn't be an issue. The main area of focus in collecting this training sample was to include enough examples of each topic so that the algorithm has enough data to accurately sort the rest of the data set. Here's a summary table showing the number of times each category was represented in a given response. You may have noticed from the table above that some of these responses mention more than one topic. This explains why some of the topics have a lot more mentions than others, it doesn't mean that there are x number of responses that ***only*** mention a topic, it just means that that's how many times a topic was mentioned period. There are some responses in our training set that mention 3 or 4 different topics, which is the reason we're doing this analysis using a multi-label classification method.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r trainer-summary, echo=FALSE, results='asis', message=FALSE}
+cat('<div id="table_2.2">')
+# Summarize the data
+start_training_summary <- start_training_set %>%
+  select(`1. Feeling understaffed or overworked`:`# of topics mentioned`) %>%
+  summarise_all(sum) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Total")
+
+# Create and style the table
+start_training_table <- kable(start_training_summary, "html", 
+                       caption = "Table 2.2: Summary of 176 Responses per Topic") %>%
+  kable_styling(full_width = FALSE) %>%
+  column_spec(1, background = "lightgrey", bold = TRUE)
+
+# Print the table in the R Markdown document
+start_training_table
+cat('</div>')
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 id="section_2.1_step_2" align="center">
+
+Step 2: Preprocessing Our Data
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+The second step in our text classification process involves cleaning and preprocessing the text data. In [Section 2.1](#section_2.1), we covered how text data is aggregated by default, which causes issues when trying to create classification models. This is addressed here as part of the tokenization process, where we'll standardize the data by removing capitalization and punctuation, which is crucial for enhancing the model's ability to learn meaningful patterns.
+
+In order to preprocess the data, we'll use a process called **tokenization**, which is the process of splitting up our responses into a one-token-per-row format where a token represents a single word. Having the text in this format lets us manipulate, process, and visualize the text using a standard set of statistical tools in R.
+
+The last step in preprocessing is the process of removing stop words. *Stop words* are words that are not useful for an analysis, they consist of typically used common words such as *"the"*, *"of"*, *"to"*, and so on. We can remove stop words using the `stop_words` dataset in the tidytext package, which contains stop words from 3 different lexicons. We can use them all together or `filter()` to only use one set of stop words which we'll do here. I opted to only use the `snowball` lexicon of stop words because it appeared to be the most generalized. We can see the list of words that will be removed during the process of tokenization below:
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r trainer-creation-nstopwords, echo=FALSE}
+data("stop_words")
+
+filtered_stop_words <- stop_words %>%
+  filter(!(lexicon %in% c("onix", "SMART")))
+
+# Assuming your data is in a dataframe called start_training_set
+# Add a document_id column
+start_training_set <- start_training_set %>%
+  mutate(document_id = row_number())
+
+# Preprocess text data: tolower, removePunctuation, removeNumbers
+# Tokenize, remove stop words, and regroup by document
+start_trainer_clean <- start_training_set %>%
+  mutate(Answer = tolower(Answer),
+         Answer = removePunctuation(Answer),
+         Answer = removeNumbers(Answer)) %>%
+  unnest_tokens(word, Answer) %>%
+  anti_join(filtered_stop_words, by = "word") %>%
+  group_by(document_id) %>%
+  summarize(Answer = paste(word, collapse = " "), .groups = 'keep') %>%
+  left_join(start_training_set %>% select(-Answer), by = "document_id")
+
+datatable(filtered_stop_words,
+          style = 'bootstrap',
+          caption = 'Table 2.3: List of Stop Words Being Removed From Responses',)
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Step 3: Feature Extraction (TF-IDF)
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Now that our data has been cleaned and pre-processed, we can move onto the next step which is feature extraction via **TF-IDF** or ***Term Frequency-Inverse Document Frequency***. TF-IDF is a statistical measure used to evaluate the importance of specific words to each document (response in our case) in a corpus (collection) of documents (responses). Since each response can be considered it's own document for the purpose of our analysis, TF-IDF can be used to assign weights of importance to each word. This is calculated by **multiplying the term frequency by the logarithm of the inverse document frequency**, which simplifies the numerical value for each term in a given corpus, thus making aggregation (trend analysis) faster and more efficient for machine learning models. Let's go over a simple example using the conditions of our analysis to better understand exactly how TF-IDF is calculated:
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+::: {style="text-align: center;"}
+<img src="https://drive.google.com/uc?export=view&amp;id=1Bkfr4bQu287T0tuUdwOJWJEYJ1TkFc-b" alt="Image 6" style="width: 100%;"/>
+:::
+
+Now that we have a better idea of what TF-IDF is and how it's calculated, we can use word clouds to see a visual difference between TF-IDF and term frequency using the data in our survey responses. Through doing so, we'll cover the reasons why using TF-IDF in NLP is preferred over term frequency.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r tf-wordcloud, echo=FALSE, fig.align='center', fig.height= 6}
+# Create a simple term frequency matrix
+START_subset_tf_matrix <- as.matrix(DocumentTermMatrix(Corpus(VectorSource(start_trainer_clean$Answer))))
+
+# Calculate the sum of term frequencies for each term
+START_subset_term_freqs <- colSums(START_subset_tf_matrix)
+
+# Generate the wordcloud
+wordcloud(names(START_subset_term_freqs), START_subset_term_freqs, scale = c(4, 1), max.words = 50, random.order = FALSE, colors = brewer.pal(8, "Dark2"))
+
+# Add a title to the word cloud, adjust cex.main for title size
+title(main = "Word Cloud of the Top 50 Words Found in Our Training Set", cex.main = 1)
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+The word cloud above represents the top 50 **most frequently used words** found in our data set. These don't really come as a surprise given the context of our survey population being mostly teachers. This is essentially the first half of our TF-IDF statistic (term frequency), next we'll look at a word cloud that uses TF-IDF instead of just term frequency.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r tf-idf-wordcloud, echo=FALSE, fig.align='center', fig.height= 6}
+# Create a Corpus and Document-Term Matrix
+START_subset_dtm <- DocumentTermMatrix(Corpus(VectorSource(start_trainer_clean$Answer)))
+
+# Calculate TF-IDF
+START_subset_tfidf <- weightTfIdf(START_subset_dtm)
+START_subset_tfidf_matrix <- as.matrix(START_subset_tfidf)
+
+# Find the sum of TF-IDF scores for each term
+START_subset_word_tfidf_sum <- colSums(START_subset_tfidf_matrix)
+
+# Generate a word cloud for TF-IDF values
+wordcloud(names(START_subset_word_tfidf_sum), START_subset_word_tfidf_sum, scale = c(3, 0.5), max.words = 50, random.order = FALSE, colors = brewer.pal(8, "Paired"))
+
+# Add a title to the word cloud, adjust cex.main for title size
+title(main = "Word Cloud of the Top 50 Most Significant Words Found in Our Training Set", cex.main = 1)
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Recall that the IDF in TF-IDF stands for **inverse document frequency**. This means that the term frequency for each term found in our data set, is adjusted by the amount of times it isn't found in our data set, thus down weighting words like `students`, `school`, or `like` because they're found too frequently throughout the corpus. This up-weights other words that may not appear as much, but are highlighted due to not having such a harsh down-weight adjustment. This explains why words like `custodian` and `communication` appear larger, since they may not have as high of a term frequency as other words, but they have higher total TF-IDF figure. Now that our data is in a numerical format suitable for modeling, we can proceed to the next step.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Step 4: Modeling Our Training Data
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Modeling text data often times utilized machine learning models in lew of traditional regression models due to the increase in computational power. Machine learning models are more suitable for processing matrices and vectors, which provide more opportunities for mapping relationships when compared to regression models. The exact type of model we'll be using here is called a **Binary Relevance SVM Classification Model**. **Binary relevance** is essentially a one-vs-all strategy, where each topic is represented by a binary label (recall [Table 2.1](#table_2.1)) and the presence or absence will be the result. This method will test each one of the 12 topics, thus creating 12 unique models.
+
+```{r model-creation, echo=FALSE}
+
+# Assuming tfidf_matrix and start_training_set are already prepared
+START_subset_topic_matrix <- as.matrix(start_training_set[, 4:15])
+START_subset_models <- list()
+
+for (i in 1:ncol(START_subset_topic_matrix)) {
+  START_subset_models[[i]] <- svm(START_subset_tfidf_matrix, START_subset_topic_matrix[, i], type = 'C-classification', kernel = 'linear')
+}
+```
+
+To evaluate the accuracy of our models, we can use a *holdout set* of data to calculate performance metrics. A **holdout set** is essentially just a subset of data that **is not** at all present in the training set. We'll have to prepare the holdout data in the same way as we did the training set, that means manually reading and labeling each comment, adding an observation number, striping capitalization & punctuation, and converting the data into a TF-IDF matrix.
+
+While this sounds like a lot of work (it is), it could've actually been a lot more. Had I not already created a function in Google sheets that automates the task of exporting random rows, finding data that wasn't already apart of my training set could have been rather complicated. We also saved time in creating a holdout set due to evenly balancing the distribution of topic representation in our `training_set`. Had we not purposely over-sampled topics that were under-represented, and under-sampled topics that were over-represented from the initial random sample we used to create the training set (which we did to ensure the models had enough data to accurately train themselves with), we would have had to make sure the topic distribution of our `holdout_set` matched the topic distribution of our training set. This just goes to show how nuanced and complicated modeling text data can be, each step is essentially 5 steps, where messing up one can ruin the entire thing.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r holdout-creation, echo=FALSE, warning=FALSE}
+
+start_holdout_set <- read_excel("Copy of Comment Report.xlsx", sheet="START Holdout Set")
+
+# Add a document_id column to ensure alignment between text and other data
+start_holdout_set <- start_holdout_set %>%
+  mutate(document_id = row_number())
+
+# Preprocess text data: tolower, removePunctuation, removeNumbers
+# Tokenize, remove stop words, and regroup by document
+start_holdout_clean <- start_holdout_set %>%
+  mutate(Answer = tolower(Answer),
+         Answer = removePunctuation(Answer),
+         Answer = removeNumbers(Answer)) %>%
+  unnest_tokens(word, Answer) %>%
+  anti_join(filtered_stop_words, by = "word") %>%
+  group_by(document_id) %>%
+  summarize(Answer = paste(word, collapse = " "), .groups = 'keep') %>%
+  left_join(start_holdout_set %>% select(-Answer), by = "document_id")
+
+# Create a Document-Term Matrix for the holdout set using the training set's vocabulary
+holdout_corpus <- Corpus(VectorSource(start_holdout_clean$Answer))
+START_holdout_dtm <- DocumentTermMatrix(holdout_corpus, control = list(dictionary = Terms(START_subset_dtm)))
+
+# Calculate TF-IDF for the holdout set
+START_holdout_tfidf <- weightTfIdf(START_holdout_dtm)
+START_holdout_tfidf_matrix <- as.matrix(START_holdout_tfidf)
+
+# Prepare the topic matrix for the holdout set ensuring it aligns with the training structure
+START_holdout_topic_matrix <- as.matrix(start_holdout_set[, 4:15])
+
+
+```
+
+```{r model-eval2, echo=FALSE}
+
+# Initialize an empty data frame to store results
+model_eval_results <- data.frame(
+  Model = integer(),
+  Accuracy = numeric(),
+  Precision = numeric(),
+  Recall = numeric(),
+  F1_Score = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop to populate the data frame
+for (i in 1:length(START_subset_models)) {
+  predictions <- predict(START_subset_models[[i]], START_holdout_tfidf_matrix)
+  predictions <- as.numeric(predictions) - 1
+  actuals <- as.numeric(START_holdout_topic_matrix[, i])
+  
+  # Compute metrics
+  accuracy <- mean(predictions == actuals, na.rm = TRUE)
+  true_positives <- sum(predictions == 1 & actuals == 1, na.rm = TRUE)
+  predicted_positives <- sum(predictions == 1, na.rm = TRUE)
+  actual_positives <- sum(actuals == 1, na.rm = TRUE)
+  
+  precision <- ifelse(predicted_positives > 0, true_positives / predicted_positives, NA)
+  recall <- ifelse(actual_positives > 0, true_positives / actual_positives, NA)
+  F1_score <- ifelse(!is.na(precision) && !is.na(recall) && (precision + recall) > 0, 
+                     2 * precision * recall / (precision + recall), NA)
+  
+  # Append the results to the data frame
+  model_eval_results <- rbind(model_eval_results, c(i, accuracy, precision, recall, F1_score))
+}
+
+# Set proper column names
+colnames(model_eval_results) <- c("Model", "Accuracy", "Precision", "Recall", "F1 Score")
+
+# Create and style the table
+model_summary_table <- kable(model_eval_results, "html", 
+                           caption = "Table 3.1: Model Evaluation Metrics") %>%
+  kable_styling(full_width = FALSE) %>%
+  column_spec(1, background = "lightgrey", bold = TRUE)
+
+# Print the table in the R Markdown document
+model_summary_table
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+To put it bluntly, these scores are not good. **Accuracy** is calculated as $\frac{TP+TN}{TP+TN+FP+FN}$, where $TP=true~positives$, $TN=true~negatives$, $FP=false~positives$, and $FN=false~negatives$. It calculated the proportion of **true results** among the **total number of cases**, where 100% accuracy is the max. While some of the models have up to **93%** accuracy, this metric can be misleading since a model could be considered accurate simply by not identifying anything and seeing a lot of true negatives. This metric essentially measures the amount of times a model *isn't wrong*, but just because it isn't wrong doesn't mean it's right.
+
+**Precision** is the ratio of **correctly predicted** true positives to **total** positives predicted (TP & FP), its calculated as: $\frac{TP}{TP+FP}$ To give an example, Model 1 has a precision score of $0.0985915$, meaning that when it predicted a positive outcome, it was correct **9.86%** of the time. None of the models had a precision score higher than **15%**, suggesting a high number of false positives.
+
+**Recall** is similar to precision except it measures the ratio of **correctly predicted** true positives to **all** the actual true positives, its calculated as: $\frac{TP}{TP+FN}$ Again looking at Model 1, it has a recall score of $0.2592593$, meaning it correctly identified **25.93%** of all the actual true positives in the `holdout_set`. None of the other models even came close to Model 1's recall score, suggesting a very high number of false negatives.
+
+**F1 Scores** are a weighted average of **Precision** and **Recall**, but since none of the models had particularly good scores for either, the F1 scores are essentially obsolete.
+
+There are many reasons why the models could have under-performed, which we'll touch on in a second. Let's first take a closer look at how the models would have classified each response by creating a table with their predictions, and see it side-by-side to our actual topic classifications.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r predicted-vs-actual, echo=FALSE}
+# Initialize an empty data frame to store predictions
+predictions_df <- as.data.frame(matrix(nrow = nrow(START_holdout_tfidf_matrix), ncol = ncol(START_subset_topic_matrix)))
+colnames(predictions_df) <- paste("Topic", 1:ncol(predictions_df), sep = " ")
+
+# Populate the data frame with predictions for each topic
+for (i in 1:length(START_subset_models)) {
+  predictions_df[, i] <- predict(START_subset_models[[i]], START_holdout_tfidf_matrix)
+}
+
+# Make sure the actual labels are in the same format (a binary matrix)
+actuals_df <- as.data.frame(START_holdout_topic_matrix)
+colnames(actuals_df) <- paste("Topic", 1:ncol(actuals_df), sep = " ")
+
+# Create a new dataframe for comparison with shortened column titles
+comparison_df <- data.frame(Document_ID = start_holdout_set$document_id)
+
+# Create summarized predictions and actuals
+predicted_summary <- apply(predictions_df, 1, function(row) {
+  paste(colnames(predictions_df)[row == 1], collapse = ", ")
+})
+
+actual_summary <- apply(actuals_df, 1, function(row) {
+  paste(colnames(actuals_df)[row == 1], collapse = ", ")
+})
+
+# Now add these summaries to the comparison dataframe without trying to set individual column names
+comparison_df <- data.frame(Document_ID = start_holdout_set$document_id,
+                            Answer = start_holdout_set$Answer)
+comparison_df$Predicted_Summary <- predicted_summary
+comparison_df$Actual_Summary <- actual_summary
+
+datatable(comparison_df,
+          style = 'bootstrap',
+          caption = 'Table 2.5: Comparison of Response Classification',
+          rownames = FALSE,
+          options = list(
+            pageLength = 5,
+            order = list(list(1, 'desc')),
+            columnDefs = list(
+                list(className = 'dt-center', targets = '_all')
+                )))
+
+##UNUSED CUSTOM HTML CONTAINER
+## Define the custom table container
+#sketch = htmltools::withTags(table(
+ # class = 'display',
+ # thead(
+  #  tr(
+   #   th(rowspan = 2, 'Document_ID'),  # These will have headers directly without a second-level header
+    #  th(rowspan = 2, 'Answer'),
+     # th(colspan = 2, 'Topic 1'),
+    #  th(colspan = 2, 'Topic 2'),
+    #  th(colspan = 2, 'Topic 3'),
+    #  th(colspan = 2, 'Topic 4'),
+    #  th(colspan = 2, 'Topic 5'),
+    #  th(colspan = 2, 'Topic 6'),
+     # th(colspan = 2, 'Topic 7'),
+    #  th(colspan = 2, 'Topic 8'),
+     # th(colspan = 2, 'Topic 9'),
+    #  th(colspan = 2, 'Topic 10'),
+     # th(colspan = 2, 'Topic 11'),
+    #  th(colspan = 2, 'Topic 12')
+  #  ),
+   # tr(
+      # The second row, which starts from the third column
+    #  lapply(rep(c('Predicted', 'Actual'), 12), th)  # 12 pairs for each topic
+  #  )
+#  )
+# ))
+
+# datatable(interleaved_df,
+      #    container = sketch,
+        #  style = 'bootstrap',
+         # caption = 'Table 2.7: Comparison of Response Classification',
+        #  rownames = FALSE,
+       #   options = list(
+      #      pageLength = 5,
+     #       order = list(list(1, 'desc')),
+    #        columnDefs = list(
+   #           list(className = 'dt-center', targets = '_all')
+  #            )))
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+We can see just how inaccurate the model was, failing to capture the topics in **almost all of our responses**. Unfortunately this is pretty common for an initial model, as machine learning techniques are extremely complicated and require a lot of tuning and improvement before being completed. There are a multitude of things we can do to try to improve these results, with the simpler steps being **re-balancing the ratios of topic representation** and **enhancing feature extraction** by exploring different data transformations such as **n-grams**. More complex options include trying different classification methods entirely such as **random forests**, **gradient boosting**, and even deep learning techniques via **neural networks**.
+
+While I would love to continue experimentation and model improvement, a large amount of time has already been dedicated to the creation of the training set and holdout set of this model and tuning the model would likely take even more time than is warranted for the goal of our analysis. All is not lost however, while the goal of creating a accurate model to automate response classification wasn't fully achieved, I learned a lot in the process of creating this first version. I can confidently say that with enough time, an accurate classification model can be made to summarize and classify textual data in a future analysis.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+## 3.0: Proportional Estimation Using Survey Sampling {#section_3}
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+So what now? Well, while manually classifying responses for the training set and holdout set to be used in the text classification model, I had the following thought:
+
+> I've already had to read a lot of responses for the creation of these subsets, couldn't I just use these as a sample to estimate the rate at which each topic is mentioned in the population?
+
+The short answer is yes, I can. It would require some additional manipulation to the sample if I wish to be as accurate as possible, but after doing that, the rest of the analysis should be relatively straight-forward. To accomplish this, we would have to:
+
+1.  **Calculate the number of times a topic is mentioned in our sample (i.e. mention rate of each topic)**
+2.  **Calculate confidence intervals for each topics mention rate**
+3.  **Use the calculated mention rates found in the sample to estimate the mention rate among the entire population**
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 id="section_3_step_1" align="center">
+
+Step 1: Optimizing the `Holdout Set` for **Proportional** Estimation
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+You may have noticed the term "proportional" being included when describing the sample we wish to generate here, and its for good reason. This means that our sample's composition should **mirror the demographic distribution of the total population we're examining**. Since the only demographic we have access to is location, each location in our sample must be included in the same proportion as it exits in the overall population, regardless of sample size. Here's a simple example that determines the proportion of responses from FCA Conroe in a 21% sample size:
+
+::: {style="text-align: center;"}
+<img src="https://drive.google.com/uc?export=view&amp;id=19t_2BI_dIObCh0i7K1sFIkNB81o9L5vV" alt="Image 2" style="width: 80%;"/>
+:::
+
+Now that we understand the importance of gathering a sample that mirrors the proportions of the population, let's begin planning what further manipulation we'll have to do to our labeled data to make it into a usable sample. Recall that in [Section 2.2; Step 1](#section_2_step_1), for the creation of the `training_set`, we deliberately over and under-represented certain topics to get equal representation across a **10%** sample size. Since the data labeled in this subset was not entirely random, it **won't accurately reflect the general sentiment of the population**, meaning its not usable for proportional sample estimation.
+
+That leaves us with only the responses categorized for the `holdout_set`, which **was** randomly generated for the purpose of model testing, and consists of a **20%** sample size. While the data from the holdout_set is usable, we'll still have to add and remove responses based on their location, in order to achieve a proportional sample. To do this, we'll create a table that shows:
+
+1.  **The total number of responses contributed per each location**
+2.  **The number of responses currently present in the `holdout_set`**
+3.  **The proportional sample contribution (PSC) needed from each location for a 20% sample size**
+4.  **The difference between the holdout_set and the 20% sample**
+5.  **A column designating whether more, less, or no responses are needed**
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r location-count-comparison, echo=FALSE, results='asis', message=FALSE}
+cat('<div id="table_3.0">')
+# Counting all START responses for each location
+all_locations_answer_counts <- dataset1.1 %>%
+  filter(Question == "START Question") %>%
+  group_by(Brand, Location) %>%
+  summarise(Answer_Count = n(), .groups = 'drop')
+
+# Formatting the holdout set in the same way as the full set first...
+start_holdout_set2 <- start_holdout_set %>%
+  mutate(
+    answer_length = str_count(Answer, "\\S+"),
+    Brand = if_else(str_detect(Location, "-"), word(Location, 1, sep = "\\s*-\\s*"), "N/A"),
+    Location = if_else(str_detect(Location, "-"), sapply(str_split(Location, "-"), function(x) trimws(x[length(x)])), Location),
+    Question = "START Question") %>%
+  arrange(answer_length) %>%
+  select(Brand, Location, Question, Answer, answer_length = answer_length)
+
+# Then counting total responses in the same way
+start_holdout_answer_counts <- start_holdout_set2 %>%
+  group_by(Brand, Location) %>%
+  summarise(Answer_Count = n(), .groups = 'drop')
+
+# Left join to ensure all combinations in the full dataset are included
+combined_table <- merge(all_locations_answer_counts, start_holdout_answer_counts,
+                        by = c("Brand", "Location"), 
+                        all.x = TRUE, 
+                        suffixes = c("_true", "_holdout"))
+
+# Replace NA values with 0 for holdout counts (assuming missing combinations are not present in the holdout set)
+combined_table$Answer_Count_holdout[is.na(combined_table$Answer_Count_holdout)] <- 0
+
+# Calculate the estimated count of answers needed in a 20% sample for each unique location/brand combination
+total_answers_true <- sum(all_locations_answer_counts$Answer_Count)
+combined_table$Estimated_Count_20_Sample <- round(combined_table$Answer_Count_true * 0.20)
+
+# Calculate the absolute rounded difference between estimated and actual holdout counts
+combined_table$Difference = abs(combined_table$Estimated_Count_20_Sample - combined_table$Answer_Count_holdout)
+
+# Determine whether more or less responses are needed or if the number is just right
+combined_table$Needed = ifelse(combined_table$Difference == 0, "none needed",
+                               ifelse(combined_table$Estimated_Count_20_Sample > combined_table$Answer_Count_holdout, "more", "less"))
+
+# Select and reorder the final columns for the combined table
+combined_table <- combined_table %>%
+  rename(`Total Population Responses` = Answer_Count_true, `Total Responses in the holdout_set` = Answer_Count_holdout, `20% Proportional Sample Contribution (PSC)` = Estimated_Count_20_Sample, `Difference Between holdout_set & 20% PSC` = Difference, `Responses Needed?` = Needed) %>%
+  select(Brand, Location, `Total Population Responses`, `Total Responses in the holdout_set`, `20% Proportional Sample Contribution (PSC)`, `Difference Between holdout_set & 20% PSC`, `Responses Needed?`)
+
+datatable(combined_table,
+          style = 'bootstrap',
+          caption = 'Table 3.0: Comparison of Population to Sample',
+          rownames = FALSE,
+          options = list(
+            columnDefs = list(
+                list(className = 'dt-center', targets = '_all')
+                )))
+cat('</div>')
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Now that we have a clear answer on which schools are over and under-represented, we'll add and remove responses from each location so that they are proportionally represented. This will be done by using a random import function in Google Sheets for responses that need to be added, and a random name picker for responses that need to be removed. We'll name this new subset `proportional_sample` and move onto the next step.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Step 2: Calculating Topic Representation in the `proportional_sample`
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Now we'll begin calculating each topics mention rate in our sample. Let's start by creating a table similar to [Table 2.2](#table_2.2), that shows a summary of the number of times each topic was mentioned in our sample. In addition to all the [predefined topics](#report_intro), this table will also include **2 new topics** (`13. No Comment` & `14. Satisfied with organization`). These new topics will hopefully allow us to get a better idea of the number of responses that fail to mention any of the 12 predefined topics.
+
+Unique to this table will be the inclusion of a lower bound and upper bound **confidence interval** statistics, or **CI** for short.
+
+Let's briefly cover what confidence intervals are and why they are being included here. In statistics, characteristics of a population are often estimated from a sample. While these estimations can be insightful, due to random chance they are likely **not** 100% accurate reflections of the true characteristics of the population. The following image further explains this concept:
+
+::: {style="text-align: center;"}
+<img src="https://drive.google.com/uc?export=view&amp;id=17eWJ0i7PhlYCC4NQjnPi2ceclCQu8dZB" alt="Image 3" style="width: 80%;"/>
+:::
+
+Essentially, confidence intervals can be used to estimate a **range** in which the **true characteristic** (in our case, rate of topic representation) is likely to be found, with a certain probability (i.e. confidence **level**). Confidence **levels** can be adjusted to whatever range you find most appropriate for your analysis, but a 95% confidence level is pretty standard in statistics, which is what we'll use here. How exactly are the upper and lower range confidence intervals actually calculated? The following image shows the formula and a visualization of a normal distribution:
+
+::: {style="text-align: center;"}
+<img src="https://drive.google.com/uc?export=view&amp;id=1mrcgYtaOWEPYhYAIYv6CxaC_aKouc1Mq" alt="Image 4" style="width: 80%;"/>
+:::
+
+Now that we understand how to interpret confidence intervals, let's take a look at the summary table to see the breakdown of topics found in our proportional sample from most to least mentions.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r sample-proportions, echo=FALSE, results='asis', message=FALSE}
+cat('<div id="table_3.1">')
+new_holdout_set <- read_excel("Copy of Comment Report.xlsx", sheet="NEW Holdout Set")
+
+new_holdout_set <- new_holdout_set %>%
+  mutate(
+    answer_length = str_count(Answer, "\\S+"),
+    Brand = if_else(str_detect(Location, "-"), word(Location, 1, sep = "\\s*-\\s*"), "N/A"),
+    Location = if_else(str_detect(Location, "-"), sapply(str_split(Location, "-"), function(x) trimws(x[length(x)])), Location),
+    Question = "START Question") %>%
+  arrange(answer_length) %>%
+  select(Brand, Location, Question, Answer, "1. Feeling understaffed or overworked":"# of topics mentioned", answer_length)
+
+# Assuming new_holdout_set is already loaded and contains your labeled data
+# Summarize the data
+new_holdout_summary <- new_holdout_set %>%
+  select(`1. Feeling understaffed or overworked`:`14. Satisfied with organization`) %>%
+  summarise_all(sum) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Total")
+
+# Calculate the proportions for each topic
+new_holdout_summary <- new_holdout_summary %>%
+  mutate(Proportion = Total / 300)  # Keep this as a decimal for the CI calculations
+
+# Adding Confidence Intervals
+new_holdout_summary <- new_holdout_summary %>%
+  rowwise() %>%
+  mutate(LowerCI = binom.confint(Total, 300, conf.level = 0.95, methods = "wilson")$lower,
+         UpperCI = binom.confint(Total, 300, conf.level = 0.95, methods = "wilson")$upper) %>%
+  ungroup()
+
+# Convert the proportion to a percentage format for reporting
+new_holdout_summary <- new_holdout_summary %>%
+  mutate(Proportion = percent(Proportion, accuracy = 0.01),
+         LowerCI = percent(LowerCI, accuracy = 0.01),
+         UpperCI = percent(UpperCI, accuracy = 0.01))
+
+new_holdout_summary <- new_holdout_summary %>%
+  arrange(desc(Total))
+
+# Create and style the table
+new_holdout_table <- kable(new_holdout_summary, "html", 
+                       caption = "Table 3.1: Topic Representation of a 20% Proportional Sample Size") %>%
+  kable_styling(full_width = FALSE) %>%
+  column_spec(1, background = "lightgrey", bold = TRUE)
+
+# Print the table in the R Markdown document
+new_holdout_table
+cat('</div>')
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Now lets use these mention rates to draw inferences on the entire population in the 3rd and final step.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Step 3: Drawing Population Inferences From the Sample
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Let's begin by estimating the number of staff who identify with each topic. Recall from section 1.3 that the true population size at the time that the survey was distributed was $3,175$ employees. Using the Proportion, Lower-bound CI, & Upper-bound CI percentages from Table 3.1, we'll create a table showing the estimated number of total workforce that sympathize with each topic.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r population-estimate-1, echo=FALSE, results='asis', message=FALSE}
+cat('<div id="table_3.2">')
+
+# Convert percentage to decimal for calculation
+new_holdout_summary$Proportion <- as.numeric(gsub("%", "", new_holdout_summary$Proportion)) / 100
+new_holdout_summary$LowerCI <- as.numeric(gsub("%", "", new_holdout_summary$LowerCI)) / 100
+new_holdout_summary$UpperCI <- as.numeric(gsub("%", "", new_holdout_summary$UpperCI)) / 100
+
+# Calculate the absolute numbers
+new_holdout_summary_2 <- new_holdout_summary %>%
+  mutate(`Estimated Total` = round(Proportion * 3175),
+         `Lower Estimate` = round(LowerCI * 3175),
+         `Upper Estimate` = round(UpperCI * 3175)) %>%
+  select(Variable, `Lower Estimate`, `Estimated Total`, `Upper Estimate`)
+
+new_holdout_summary_2 <- new_holdout_summary_2 %>%
+  arrange(desc(`Estimated Total`))
+
+# Create and style the table
+new_holdout_table_2 <- kable(new_holdout_summary_2, "html", 
+                       caption = "Table 3.2: Estimated Topic Representation of the True Workforce Population ") %>%
+  kable_styling(full_width = FALSE) %>%
+  column_spec(1, background = "lightgrey", bold = TRUE)
+
+# Print the table in the R Markdown document
+new_holdout_table_2
+
+cat('</div>')
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+While we could stop here and use these population estimates to draw conclusions, there are a few ways to manipulate our sampling method and data pre-processing, in order to give more definitive results. Doing so would address potential biases that could be skewing our results one way or another.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+### 3.1 Highlighting Potential Biases Affecting Our Sample Estimates
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+According to our survey sample, we can say with **95%** certainty that roughly **10%** of our total workforce population ($430$ employees) are dissatisfied with their compensation. While that doesn't seem like a lot, it's important to contextualize these figures within the broader scope of the survey itself. What we mean by this is that there are a number of potential biases that could be causing under-representation of the true sentiment of our workforce population.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Self-Selection Bias
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+One of the broader factors that could be skewing our results is the potential for self-selection bias. This occurs when the individuals who choose to respond are **not a random sample but are self-selected participants,** that tend to have strong opinions. Whether negative or positive, these participants are more likely to take the time to respond to surveys or provide feedback, leaving out the **moderate or indifferent voices**.
+
+It's reasonable to assume that under the conditions of this bias, the majority of the unobserved population (the moderate/indifferent) are more likely to agree (to a degree) with the sentiment of the self-selected participants than not agree. Since we measured free-response participation rate of this survey as being [**47%**](#section_1.3), that would mean that roughly **53%** of our total workforce could be considered "disengaged". One could argue that the sentiment of the disengaged **should** be accounted for in one way or another, since being disengaged could be considered on-par with being dissatisfied.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Introducing Non-random Sampling Bias vs Dealing with Underestimation of Topic Representation
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Another major factor that could be skewing our results also revolves around disengagement, specifically the large amount of "unhelpful" responses first covered in [Section 2.1](#section_2.1). While unhelpful responses (["no comment"](#table_3.2)) only made up about **6%** of our sample, that's **6%** less useful data that could have been used to enhance the precision of topic representation. Utilizing NLP techniques introduced in [Section 2.2](#section_2.1_step_2), we can actually find and exclude certain responses deemed "unhelpful" relatively easily.
+
+The only issue with removing unhelpful responses is the potential to introduce **non-random sampling bias**. This can occur if the unhelpful responses are **not uniformly distributed** across our population, especially if certain segments of the population are more likely to give unhelpful responses than others. This could of course be accounted for by calculating response-drop ratios for each location, and seeing if they're uniformly distributed, but this process would be cumbersome and inefficient.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Addressing Non-random Location Sampling Bias
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+The last major factor possibly skewing our results pertains to potential demographic imbalances being caused by the `Prefer Not to Disclose` location option. Recall that in [Step 1](#section_3_step_1) we had to **calculate the proportions of random responses needed from each location**, in order to collect a proportionally accurate sample of our population. But is FCA Conroe truly proportionally represented if half of their staff selected the `Prefer Not to Disclose` option? As is, the sample lacks granularity to examine location specific sentiment due to the potential for bias. For example, if respondents who feel negatively about certain issues are more inclined to hide their location, the topics regarding location specific issues (Topic 1, 9, & 10) are likely skewed.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Is There a Solution?
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+We've covered how the unobserved population makes up roughly **53%** of our total workforce, and how they are more likely to **hold the same sentiment** as the people who actually answered than not. We've also covered how unhelpful responses could be down-weighting topic sentiment, along with the possibility of introducing non-random sampling bias by **removing unhelpful responses** if they're not **uniformly distributed** across all the locations. Lastly, we went over the potential non-random sampling bias that could already be present in our population via the `Prefer Not to Disclose` location option.
+
+All that being said, is there a way to account for the large disengaged portion of our population, **while** increasing the importance of helpful answers, **and** eliminating any potential non-random sampling bias?
+
+As a matter of fact, yes. We can do this by:
+
+1.  **Removing unhelpful and "Prefer Not to Disclose" responses**
+2.  **Use total workforce population to calculate N sample size AND proportional sample contribution, instead of response population**
+3.  **Up-weighting all remaining responses in our sample according to the ratio of remaining responses to campus staff count**
+4.  **Factor in these changes by increasing the size of the confidence intervals of our topic mention rate estimations**
+
+Lets explain what we mean by `"using total workforce... instead of response population"`. In Section 3.0 we calculated the N sample size as a percentage of the total **responses**. Since we're omitting roughly **17%** of the original data set as part of step 1 here, it doesn't really make sense to use the same **20% of total responses** method we used earlier, since we'd essentially be sampling a sample. If we did calculate the sample in the same way post-omission, our sample would actually decrease in size since omitting responses would shrink the size of the entire dataset. Instead, it makes more sense to use the **true population** ([3,175](#section_1.3)) to calculate sample size, especially since it also helps solve potential non-random sampling bias that could be introduced via omission of unusable data.
+
+Likewise, if data were not uniformly omitted across all locations, calculating a PSC in the same way we did before could result in inaccurate proportions and negatively affect the final weight adjustments. This means that PSC will be determined by the **proportion of each locations staff count** to the **total staff count** (percentage-of-whole), and **not** as the proportion of responses from each location to all responses. Using the true population for calculating proportional sample contributions is essential, especially since we're deliberately trying to account for the missing population via omission of unusable data and response weighting. **10%** of our true population totals out to about $318$ individual responses and is fairly close to the **20%** sample size used for the `holdout_set` ($298$).
+
+Now that we understand steps 1 & 2, what do we mean by up-weighting exactly? For each location, we'll calculate a **response-weight adjustment**, that will be applied to each response **before** its recorded as a topic mention. The response-weight adjustment will be calculated by **dividing the number of remaining responses from each location** (post-omissions), by their **adjusted 22-23 staff count.** We'll cover why we're using an adjusted staff count in lieu of an actual staff count later, but for now let's work through an example using the same scenario from [Section 3.0: Step 1](#section_3_step_1) to better understand the steps involved with this refined sampling method:
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+::: {style="text-align: center;"}
+<img src="https://drive.google.com/uc?export=view&amp;id=1vzMTSGwTD6xL15AkE0kfOrwvzNec5ifr" alt="Image 5" style="width: 100%;"/>
+:::
+
+Now that we've outlined the steps involved with refining our sampling methodology, let's start making the necessary changes to our population and sample set.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+### 3.2 Refined Proportional Estimation Using Survey Sampling for an Unobserved Population
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Recall the introduction to NLP preprocessing in [Section 2.2: Step 2](#section_2.1_step_2), here we first introduced the concept of stripping capitalization & punctuation from text in order to aggregate responses easier. In that section, this was done automatically as part of the tokenization process. Here, we'll have to use specific functions to do this, in order to more easily find and remove unhelpful answers from our `start_dataset`. While it is cumbersome and time consuming as we mentioned in [Section 2.1](#section_2.1), we're only doing this for eliminating one particular type of response. Doing so for manual classification of all 12 of our topics would have been a different story.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Step 1: Removing Unusable Data From the Population
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Let's start by creating a table, adding a new `standardized answer` row, and aggregating any repeat answers.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r response-cleansing, echo=FALSE, message=FALSE, warning=FALSE}
+start_dataset_2 = dataset1.2 %>% 
+  filter(Question == "START Question")
+
+#Now lets see all the unique answers that show up in the entire data set more than once
+start_answer_counts = start_dataset_2 %>%
+  count(`standardized answer`, sort= TRUE)
+
+start_sum <- sum(start_answer_counts$n)
+
+datatable(start_answer_counts, 
+          colnames = c('# of Occurances' = 'n'),
+          style = 'bootstrap',
+          caption = 'Table 3.3: All Responses to "START" Question',
+          rownames = FALSE,
+          options = list(
+            pageLength = 10,
+            drawCallback = JS(
+              paste0("function(settings) {",
+                     "  var api = this.api();",
+                     "  $(api.table().container()).find('.dataTables_info').each(function() {",
+                     "    var text = $(this).text();",
+                     "    text = text.replace('entries', 'Unique Responses');",
+                     "    $(this).text(text);",
+                     "  });",
+                     "  var info = $(api.table().container()).find('.dataTables_info');",
+                     "  info.html(info.html() + ' <span style=\"font-weight: bold;\">", "(Sum of Total: ", start_sum, ")</span>');",
+                     "}"))))
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+This table helps us tremendously, we're able to see a handful of responses that we could easily remove such as `na` and `nothing`, but I'm certain that there's more responses than just the repeat ones we see above that would classify as "unhelpful".
+
+We can get a filtered view to see specific responses that match a criteria using regular expressions. Specifically, we'll look through responses that start with `I` or `N`. The reason being that most unhelpful responses are likely going to start with I statements, or sentences that begin with negative sentence fragments (`not sure, I...` or `nothing, I...`). For the sake of not being repetitive, we'll do this process of combing through and removing responses independent from this report. The following table will be the final version of the `START` dataset post-data-cleansing.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r response-cleansing-2, echo=FALSE}
+
+omitting_exact <- c("na", "nothing", "", "none", "i cant think of anything", "nothing comes to mind", "no comment", "i can not think of anything", "i cannot think of anything", "i cant think of an answer for this", "i cant think of anything", "i cant think of anything right now", "i dont know", "i have no response to this", "i really cannot think of anything", "i really cant think of anything at the moment", "i still am a new employee so i dont have anything to add at this time", "i truly have nothing", "ive not been here long enough to answer that", "na at this time", "nc", "no suggestions", "not sure", "not sure as of yet i am new to the agency", "nothing at this time", "nothing comes to mind at this time", "nothing that i can think of", "nothing that i know of at this time", "cannot think of anything at the moment", "cant think of anytrhing right now", "have s", "yepi got nothing here", "pertaining to the organization  na")
+
+#applying the values to exclude to the same starts_counts table we used earlier
+start_answer_counts_2 <- start_dataset_2 %>%
+  filter(!`standardized answer` %in% omitting_exact) %>%
+  count(`standardized answer`, sort = TRUE)
+
+start_sum_2 <- sum(start_answer_counts_2$n)
+
+datatable(start_answer_counts_2, 
+          colnames = c('# of Occurances' = 'n'),
+          style = 'bootstrap',
+          caption = 'Table 3.4: All Remaining Responses to "START" Question',
+          rownames = FALSE,
+          options = list(
+            pageLength = 10,
+            drawCallback = JS(
+              paste0("function(settings) {",
+                     "  var api = this.api();",
+                     "  $(api.table().container()).find('.dataTables_info').each(function() {",
+                     "    var text = $(this).text();",
+                     "    text = text.replace('entries', 'Unique Responses');",
+                     "    $(this).text(text);",
+                     "  });",
+                     "  var info = $(api.table().container()).find('.dataTables_info');",
+                     "  info.html(info.html() + ' <span style=\"font-weight: bold;\">", "(Sum of Total: ", start_sum_2, ")</span>');",
+                     "}"))))
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+It looks like removing unhelpful responses decreased the number of total responses from $1492$ to $1410$, a decrease of **5.49%**. It's important to note that the estimated percentage of responses that were unhelpful in our [`proportional_sample`](#table_3.1) was **6.33%**. This is very close to the true population percentage of **5.49%**, and well within our **95%** confidence level. One could argue that this estimate provides circumstantial evidence that our proportional sampling technique is indeed an accurate representation of the whole population.
+
+Next let's remove the `Prefer Not to Disclose` responses from the population, and then recalculate [Table 3.0](#table_3.0) in order to see what changes we'll have to make to the `proportional_sample` we used for estimating our sample pre-omissions.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Step 2: Calculating Percentage-of-Whole and Proportional Sample Contributions
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+While I did this already to determine the amount of responses needed from each location for our `proportional sample` in Table 3.1, we have to do this **again** here since we won't be using **total responses** to determine proportional sample contributions (PSC). Instead, we'll be using **total workforce** to calculate PSC due to altering the response count by removing responses. However, we can't easily calculate PSC for all locations since we'd need **accurate historical staff counts** for **all** company entities and campuses **at the time** that the survey was distributed, then calculate the percentage-of-whole (POW) each location makes-up of the true population.
+
+In order to calculate POW for all location options, we'll have to import and calculate average staff count for each location option in the survey, which also comes with several challenges. While we have accurate staff counts for all RESED TX school locations, we cannot say the same for Arkansas locations, Home office departments, Blue-X, or Bright Thinker. Calculating average staff counts for these locations will be difficult as historical staff counts for these entities are rarely kept track of. For the sake of time, I ended up estimating as best I could for the locations where I don't have easy access to historical staff counts.
+
+Arkansas school totals were estimated using the latest active staff count data I had access to, which was for September of 2023. There was a count differential after adding the AR totals to the RESED TX totals, which was made-up by proportionally adjusting each AR school via their POW until the `Total RES Staff` number of $2820$ first outlined in [Section 1.3](#section_1.3) was matched. Home office departments were estimated using EOY Skyward counts for 22-23, and adjusted from the Blue Learning total since we know that a portion of home office employees are technically Blue Learning. Blue-X was also estimated from the BL total, leaving the proportional adjustment of all schools to account for substitutes as the last step.
+
+This is why we mentioned earlier that there's a reason we're using an **adjusted staff count** in lieu of an **actual staff count**, as it would be nearly impossible to determine accurate staff counts at the time of the survey. Once the staff counts have been calculated, we'll use the POW ratio from each location to calculate a new **10%** proportional sample contribution of the true population.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r response-difference-calc, echo=FALSE}
+
+# Cleanse and prepare the post-omission sample data
+start_dataset_3 <- start_dataset_2 %>%
+  filter(!`standardized answer` %in% omitting_exact) %>%
+  filter(Location != "Prefer Not to Disclose")
+
+post_omission_sample <- read_excel("Copy of Comment Report.xlsx", sheet="Post-Omission Sample") %>%
+  mutate(
+    answer_length = str_count(Answer, "\\S+"),
+    Brand = if_else(str_detect(Location, "-"), word(Location, 1, sep = "\\s*-\\s*"), "N/A"),
+    Location = if_else(str_detect(Location, "-"), sapply(str_split(Location, "-"), function(x) trimws(x[length(x)])), Location),
+    Question = "START Question") %>%
+  arrange(answer_length)
+
+# Count responses and prepare data for join
+post_omission_answer_counts <- post_omission_sample %>%
+  group_by(Brand, Location) %>%
+  summarise(Answer_Count = n(), .groups = 'drop')
+
+all_locations_answer_counts2 <- start_dataset_3 %>%
+  group_by(Brand, Location) %>%
+  summarise(Answer_Count = n(), .groups = 'drop')
+
+combined_table2 <- merge(all_locations_answer_counts2, post_omission_answer_counts,
+                         by = c("Brand", "Location"), 
+                         all.x = TRUE, 
+                         suffixes = c("_true", "_post-omission sample"))
+
+# Read and prepare the Location Staff Totals data
+location_staff_totals <- read_excel("Copy of Comment Report.xlsx", sheet = "Location Staff Totals") %>%
+  mutate(
+    Brand = if_else(str_detect(`Locations from Survey`, "-"), word(`Locations from Survey`, 1, sep = "\\s*-\\s*"), "N/A"),
+    Location = if_else(str_detect(`Locations from Survey`, "-"), sapply(str_split(`Locations from Survey`, "-"), function(x) trimws(x[length(x)])), `Locations from Survey`)
+  ) %>%
+  rename(Staff_Count = `Adjusted Count`) %>%
+  select(Brand, Location, Staff_Count)
+
+# Integrate the staff count data and adjust column names
+combined_table2 <- merge(combined_table2, location_staff_totals, by = c("Brand", "Location"), all.x = TRUE)
+
+# Calculate the percentage of the whole for each location and perform other calculations
+combined_table2$`Percentage-of-Whole` <- round((combined_table2$Staff_Count / sum(location_staff_totals$Staff_Count, na.rm = TRUE)), 4)
+combined_table2$`10% Proportional Sample Contribution (PSC)` <- round(combined_table2$`Percentage-of-Whole` * 317.5)
+combined_table2$`Difference Between proportional_sample & 10% PSC` = abs(combined_table2$`10% Proportional Sample Contribution (PSC)` - combined_table2$`Answer_Count_post-omission sample`)
+combined_table2$`Responses Needed?` = ifelse(combined_table2$`Difference Between proportional_sample & 10% PSC` == 0, "None needed",
+                                             ifelse(combined_table2$`10% Proportional Sample Contribution (PSC)` > combined_table2$`Answer_Count_post-omission sample`, "More", "Less"))
+
+# Rename columns to match the requested names and select them in the specified order
+combined_table2 <- combined_table2 %>%
+  rename(`proportional_sample Count` = `Answer_Count_post-omission sample`,
+         `22-23 Adjusted Staff Count` = Staff_Count) %>%
+  select(Brand, Location, `22-23 Adjusted Staff Count`, `Percentage-of-Whole`, `proportional_sample Count`, `10% Proportional Sample Contribution (PSC)`, `Difference Between proportional_sample & 10% PSC`, `Responses Needed?`)
+
+# Render the updated table
+datatable(combined_table2,
+          style = 'bootstrap',
+          caption = 'Table 3.5: Using Percentage-of-Whole to determine Proportional Sample Contributions',
+          rownames = FALSE,
+          options = list(
+            columnDefs = list(
+                list(className = 'dt-center', targets = '_all')
+                )))
+
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Now that we know which locations we need more responses from for a proportional **10%** sample, we'll export the post-omission data set to Google Sheets, and randomly select and classify the responses needed to complete this final sample. Next we can see how this final optimized sample will differ from the previous `proportional_sample` by comparing counts. We'll also include the **weight adjustment** that will be applied to responses from each location based on their staff count/response differential as discussed earlier.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r final-sample-v-holdout-comparison, echo=FALSE, message=FALSE}
+#import the final sample
+final_sample <- read_excel("Copy of Comment Report.xlsx", sheet="Final Sample")
+
+final_sample_counts <- final_sample %>%
+  group_by(Brand, Location) %>%
+  summarise("final_sample Count" = n())
+
+new_holdout_counts <- new_holdout_set %>%
+  group_by(Brand, Location) %>%
+  summarise("proportional_sample Count" = n())
+
+start_dataset3_counts <- start_dataset_3 %>%
+  group_by(Brand, Location) %>%
+  summarise(ResponseCount = n())
+
+# Step 3: Merge this with location_staff_totals to align staff counts
+weighted_responses <- start_dataset3_counts %>%
+  left_join(location_staff_totals, by = c("Brand", "Location"))
+
+# Step 4: Calculate weights as the ratio of staff count to response count
+weighted_responses <- weighted_responses %>%
+  mutate(Weight = round(Staff_Count / ResponseCount))
+
+# Combine all counts and weights into a single table
+combined_table3 <- merge(final_sample_counts, new_holdout_counts, by = c("Brand", "Location"), all = TRUE) %>%
+  merge(weighted_responses, by = c("Brand", "Location"), all = TRUE)
+
+# Replace NA values with appropriate defaults (e.g., 0 for counts, 1 for weights)
+combined_table3[is.na(combined_table3)] <- 0
+combined_table3$Weight[is.na(combined_table3$Weight)] <- 1
+
+# Reorder columns as requested
+combined_table3 <- combined_table3 %>%
+  rename("Total Responses Post-Omission" = ResponseCount,
+         "22-23 Adjusted Staff Count" = Staff_Count,
+         "Response-Weight Adjustment" = Weight) %>%
+  select(Brand, Location, `proportional_sample Count`, `final_sample Count`, `Total Responses Post-Omission`, `22-23 Adjusted Staff Count`, `Response-Weight Adjustment`)
+
+datatable(combined_table3,
+          style = 'bootstrap',
+          caption = 'Table 3.6: ',
+          rownames = FALSE,
+          options = list(
+            columnDefs = list(
+                list(className = 'dt-center', targets = '_all')
+                )))
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+The process of weighting doesn't change the actual count of responses in our final sample, but in their **contribution** to the analysis. Take FCA Austin for example. This table shows us that there is one additional response in the final sample than in the one used before, because they make up a higher POW ratio to total workforce than to total responses. Furthermore, each of the responses from FCA Austin will be weight-adjusted by a value of $3$ to make up for the difference between the total responses post-omission, and the 22-23 adjusted staff count.
+
+Since this final sample represents a refined-optimized version of our original `proportional_sample`, I decided to add **two new topics** that weren't apart of our original 12 (`14. favoritism or lack of staff accountability` & `15. better benefits besides PTO`). At this point I've likely read through almost half of the original 1400 responses, so I believe the addition of these last 2 topics **should capture the remaining majority points of discussion not apart of our predefined list**. Now that we understand how the responses will be weighted, let's calculate the topic metrics using our `final_sample` and go over the results.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r optimized-sample-summary, echo=FALSE}
+
+
+# Step 2: Merge the weights into the final_sample
+final_sample_adjusted <- merge(final_sample, weighted_responses, by = c("Brand", "Location"))
+
+# Step 3: Adjust the topical responses by the weights
+# Specify the correct topic column names
+topic_columns <- c('1. Feeling understaffed or overworked',
+                   '2. More opportunities to voice concerns or recommendations',
+                   '3. Home office representation at campus level',
+                   '4. Pointed staff recognition',
+                   '5. Staff ameneties or events',
+                   '6. Student disciplinary system issues',
+                   '7. Improve communication',
+                   '8. More PTO',
+                   '9. Building improvements or better maintenance',
+                   '10. Issues or praise for CD',
+                   '11. More or better training for staff',
+                   '12. Increase in compensation',
+                   '13. Satisfied with organization',
+                   '14. favoritism or lack of staff accountability',
+                   '15. better benefits besides PTO')
+
+# Iterate over the topic columns and multiply by the weight
+for (col in topic_columns) {
+  final_sample_adjusted[[col]] <- final_sample_adjusted[[col]] * final_sample_adjusted$Weight
+}
+
+# Summarize the data
+final_sample_summary <- final_sample_adjusted %>%
+  select(`1. Feeling understaffed or overworked`:`15. better benefits besides PTO`) %>%
+  summarise(across(everything(), ~round(sum(.), 0))) %>%
+  pivot_longer(everything(), names_to = "Topics Mentioned", values_to = "Weighted Sample Count")
+
+final_sample_summary_updated <- final_sample_summary %>%
+  mutate(Proportion = `Weighted Sample Count` / 318) %>%
+  rowwise() %>%
+  mutate(LowerCI = binom.confint(`Weighted Sample Count`, 318, conf.level = 0.90, methods = "wilson")$lower,
+         UpperCI = binom.confint(`Weighted Sample Count`, 318, conf.level = 0.90, methods = "wilson")$upper) %>%
+  ungroup() %>%
+  mutate(`Sample Proportion %` = percent(Proportion, accuracy = 0.01),
+         `LowerCI %` = percent(LowerCI, accuracy = 0.01),
+         `UpperCI %` = percent(UpperCI, accuracy = 0.01)) %>%
+  mutate(Proportion = as.numeric(gsub("%", "", `Sample Proportion %`)) / 100,
+         LowerCI = as.numeric(gsub("%", "", `LowerCI %`)) / 100,
+         UpperCI = as.numeric(gsub("%", "", `UpperCI %`)) / 100) %>%
+  mutate(`Estimated Total` = round(Proportion * 3175),
+         `Lower Estimate` = round(LowerCI * 3175),
+         `Upper Estimate` = round(UpperCI * 3175)) %>%
+  select(`Topics Mentioned`,`Weighted Sample Count`, `Sample Proportion %`, `LowerCI %`, `UpperCI %`, 
+         `Estimated Total`, `Lower Estimate`, `Upper Estimate`)
+
+final_sample_summary_updated <- final_sample_summary_updated %>%
+  arrange(desc(`Weighted Sample Count`))
+
+# Create and style the table
+final_sample_table <- kable(final_sample_summary_updated, "html", 
+                       caption = "Table 3.7: Summary Table of Weighted Responses Estimation") %>%
+  kable_styling(full_width = FALSE) %>%
+  column_spec(1, background = "lightgrey", bold = TRUE)
+
+# Print the table in the R Markdown document
+final_sample_table
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Since this sample is using a great deal of estimation, I thought it would be appropriate to widen the confidence level from **95%** to **90%** to account for these conditions. Linguistically, this means that we're certain that **90% of the time, the true topic mention rate (Sample Proportion %) will fall between these two values (LowerCI % & UpperCI %)**.This sample estimation tries to account for individuals that (for one reason or another) were not represented in the survey population we originally pulled from for [Table 3.1](#table_3.1). It does this by **weighting any remaining useful responses according to their campus's response-to-count ratio**, the logic being that sentiment among the staff at each location is **more likely to be aligned that not**. Of course, there could still be cases where one individuals response could be an outlier, but that's the case in all sample estimations, and that's why it's important to consider this when setting confidence intervals. That being said, these metrics give us more of an actionable insight as to which issues to address and prioritize. Let's move onto the final step of this analysis which is to build action items based on specific comments.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+## 4.0: Concluding the Analysis
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Since the `final_sample` is technically an estimation, let's bring back the `proportional_sample` summaries so we can compare it to the refined sample summary done above.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r proportional_sample_summary, echo=FALSE}
+# Merge the summaries to create a combined data frame without reapplying the percent formatting
+proportional_sample_summary <- merge(new_holdout_summary, new_holdout_summary_2, by = "Variable")
+
+# Now sort the combined table by Total in descending order
+# Ensure Total is a column in new_holdout_summary_2 or adjust the column name accordingly
+proportional_sample_summary <- proportional_sample_summary %>%
+  arrange(desc(`Estimated Total`))
+
+# Create and style the sorted and combined table
+proportional_sample_table <- kable(proportional_sample_summary, "html", 
+                                   caption = "Table 4.0: Combined proportional_sample Summary") %>%
+  kable_styling(full_width = FALSE) %>%
+  column_spec(1, background = "lightgrey", bold = TRUE)
+
+# Print the combined and sorted table in the R Markdown document
+proportional_sample_table
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+While the counts themselves are a lot higher in Table 3.7 due to the weight-adjustments, the order of the most frequently mentioned topics remain largely unchanged between our original sample and the refined one. The #1 most mentioned topic among all staff is `Increase in compensation`, #2 is `Improve communication`, and #3 is `Feeling understaffed or overworked`. Let's take a closer look at each of these to draw closing arguments and action items.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+Most Mentioned Topic: Increase in Compensation
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+To get a better idea of the specific things people said in regards to `Increase in Compensation`, let's create a table that shows all the responses that mentioned this topic in our `final_sample`.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r only-increase-compensation, echo=FALSE}
+
+# Filter the observations where '12. Increase in compensation' is 1
+final_sample_increase_comp <- final_sample %>%
+  filter(`12. Increase in compensation` == 1) %>%
+  select(Brand, Location, Question, Answer, `12. Increase in compensation`)
+
+datatable(final_sample_increase_comp,
+          style = 'bootstrap',
+          caption = 'Table 4.1: All Responses that Mention Topic 12 ',
+          rownames = FALSE,
+          options = list(
+            columnDefs = list(
+                list(className = 'dt-center', targets = '_all')
+                )))
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+The majority of responses don't elaborate past outright stating "increase pay", but there are a couple of mentions of matching compensation to that of local ISDs, doing regular salary reviews, and cost of living adjustments. In a perfect world, we would just increase everyone's salary by 10% and everyone would be happy, but that's just not feasible at this time. Some low-cost solutions recommended by Casey Morgan are to:
+
+1.  **create district wide salary schedules**
+2.  **establish regular evaluation systems**
+
+Both of these suggestions could be completed within a relatively short-timeline and would show progress towards fulfilling an increase in compensation.
+
+Because these solutions don't immediately address the compensation concerns, I recommend being transparent with our workforce as to why we're not currently able to do so. Transparency would go a long way here, and it would be an easy way to improve communication which also happens to be the second most mentioned topic. Explaining the reasons why we're not able to immediately increase compensation could stifle any frustration potentially brewing within the workforce population.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+2nd Most Mentioned Topic: Improve communication
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Now let's look at the responses from our `final_sample` that mention improving communication.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r only-improve-com, echo=FALSE}
+
+# Filter the observations where '12. Increase in compensation' is 1
+final_sample_improve_com <- final_sample %>%
+  filter(`7. Improve communication` == 1) %>%
+  select(Brand, Location, Question, Answer, `7. Improve communication`)
+
+datatable(final_sample_improve_com,
+          style = 'bootstrap',
+          caption = 'Table 4.2: All Responses that Mention Topic 7 ',
+          rownames = FALSE,
+          options = list(
+            columnDefs = list(
+                list(className = 'dt-center', targets = '_all')
+                )))
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+The responses here vary similarly to the previous example for increasing compensation, but defining clear solutions to specific communication problems is more difficult without more details. There are several responses that mention better communication surrounding new system/product implementations, and other responses that mention proactive communication regarding staff leaves. While these are certainly important grievances, there aren't really any definitive ways to improve communication channels regarding these specific issues at the campus level. This question serves as a good example for targeted questions we could ask our workforce in future surveys, for example:
+
+1.  **"In what ways could we as an organization improve general communication?"**
+2.  **"how could communication be improved at your campus?"**
+3.  **"In what areas do you feel your campus is lacking communication?"**
+
+As for some definitive solutions, Casey recommends:
+
+1.  **Revising job descriptions that are signed by all employees**
+2.  **Re-instituting regular town hall meetings**
+3.  **Starting round table discussions with various staff**
+
+These ideas would be fairly straight-forward to implement, and are actual recommendations sourced from survey responses.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+<h5 align="center">
+
+3rd Most Mentioned Topic: Feeling understaffed or overworked
+
+</h5>
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Lastly, lets look at responses that mention feeling understaffed or overworked.
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+```{r only-understaffed, echo=FALSE}
+
+# Filter the observations where '12. Increase in compensation' is 1
+final_sample_understaffed <- final_sample %>%
+  filter(`1. Feeling understaffed or overworked` == 1) %>%
+  select(Brand, Location, Question, Answer, `1. Feeling understaffed or overworked`)
+
+datatable(final_sample_understaffed,
+          style = 'bootstrap',
+          caption = 'Table 4.3: All Responses that Mention Topic 1 ',
+          rownames = FALSE,
+          options = list(
+            columnDefs = list(
+                list(className = 'dt-center', targets = '_all')
+                )))
+
+```
+
+::: {style="margin-bottom: 30px;"}
+:::
+
+Of the top 3 most mentioned topics in our `final_sample`, responses that mention Topic 1 vary the most in language and sub-topic. In other words, the objective interpretation of topics is most evident with these responses, and we have a clearer image as to why our machine-learning model performed so poorly. The majority of responses mention hiring additional support in the form of counselors, classroom aides, and campus security.
+
+Some recommendations provided by Casey Morgan include:
+
+1.  **Implementing a school marshall program**
+2.  **Implementing a robust referral program with incentives**
+3.  **Including two additional sick leave days (7 total per year)**
+4.  **Implementing a substitute tracking system (Red Rover)**
+
+The last of which is actually already being implemented as part of an HR Operations project led by Pete Alonzo. Adding additional sick days and implementing a school marshall program would also address other frequently mentioned topics in the survey responses ("More PTO" & "Student disciplinary system issues" respectively). Ultimately, regardless of the changes we make as a result of this analysis, we've learned that satisfaction survey's not only give valuable insight into the general sentiment of our workforce, but also provides an opportunity for them to voice concerns and contribute to the operation of our organization as a whole.
