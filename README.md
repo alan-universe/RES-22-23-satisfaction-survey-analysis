@@ -18,10 +18,10 @@ This project analyzes over 5,000 open-ended responses collected from a 2022–20
 
 ## 📄 Files
 
-- `satisfaction_survey_analysis.Rmd` — Full analysis script and report
-- `satisfaction_survey_analysis.html` — Rendered report (open in browser)
-- `Comment_Report-_07.20.2023.xlsx` — Pre-processed response data
-- `Copy_of_Comment_Report.xlsx` — Cleaned response samples created in-file
+- Response Categorization FINAL.Rmd — Full analysis script and report
+- Response-Categorization-FINAL.html — Rendered report (open in browser)
+- Comment_Report_07.20.2023.xlsx — Pre-processed response data
+- Copy_of_Comment_Report.xlsx — Cleaned sample responses created in-file
 
 ## 📈 Key Insights
 
